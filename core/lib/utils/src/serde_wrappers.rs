@@ -7,8 +7,9 @@ use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use crate::convert::*;
 
 #[derive(Clone, Debug)]
-pub struct UnsignedRatioSerializeAsDecimal;
+pub struct UnsignedRatioSerializeAsDecimal;//无符号科学计数法序列化为浮点数
 impl UnsignedRatioSerializeAsDecimal {
+    //序列化一个科学计数法浮点数
     pub fn serialize<S>(value: &Ratio<BigUint>, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
@@ -16,12 +17,14 @@ impl UnsignedRatioSerializeAsDecimal {
         BigDecimal::serialize(&ratio_to_big_decimal(value, 18), serializer)
     }
 
+    // 反序列化一个字符串值
     pub fn deserialize<'de, D>(deserializer: D) -> Result<Ratio<BigUint>, D::Error>
     where
         D: Deserializer<'de>,
     {
         // First, deserialize a string value. It is expected to be a
         // hexadecimal representation of `BigDecimal`.
+        // 首先，反序列化一个字符串值。它应该是“BigDecimal”的十六进制表示。
         let big_decimal_string = BigDecimal::deserialize(deserializer)?;
 
         big_decimal_to_ratio(&big_decimal_string).map_err(de::Error::custom)
@@ -40,6 +43,7 @@ impl UnsignedRatioSerializeAsDecimal {
 }
 
 /// Used to serialize BigUint as radix 10 string.
+/// 用于将 BigUint 序列化为基数 10 的字符串。
 #[derive(Clone, Debug)]
 pub struct BigUintSerdeAsRadix10Str;
 

@@ -1,35 +1,35 @@
-use bigdecimal::BigDecimal;
+use bigdecimal::BigDecimal;//十进制大数
 use num::{
     bigint::ToBigInt,
-    rational::Ratio,
+    rational::Ratio,//两个数字之间的比率
     traits::{sign::Signed, Pow},
     BigUint,
 };
-
+//公开函数，将科学表示法ratio转换为BigDecimal， num为小数点表示，precision为10的次方， 返回bigdecimal类型的数字（常规的书写办法）
 pub fn ratio_to_big_decimal(num: &Ratio<BigUint>, precision: usize) -> BigDecimal {
     let bigint = round_precision_raw_no_div(num, precision)
         .to_bigint()
-        .unwrap();
-    BigDecimal::new(bigint, precision as i64)
+        .unwrap();//转换为bigint
+    BigDecimal::new(bigint, precision as i64)//转换为BigDecimal
 }
-
+//将BigDecimal类型的数字转换为科学计数法的数字
 pub fn big_decimal_to_ratio(num: &BigDecimal) -> Result<Ratio<BigUint>, anyhow::Error> {
-    let (big_int, exp) = num.as_bigint_and_exponent();
-    anyhow::ensure!(!big_int.is_negative(), "BigDecimal should be unsigned");
-    let big_uint = big_int.to_biguint().unwrap();
-    let ten_pow = BigUint::from(10_u32).pow(exp as u128);
-    Ok(Ratio::new(big_uint, ten_pow))
+    let (big_int, exp) = num.as_bigint_and_exponent();//返回bigint和次方
+    anyhow::ensure!(!big_int.is_negative(), "BigDecimal should be unsigned");//确保big_int是合法的
+    let big_uint = big_int.to_biguint().unwrap();//转为无符号整数
+    let ten_pow = BigUint::from(10_u32).pow(exp as u128);//生成次方
+    Ok(Ratio::new(big_uint, ten_pow))//返回最终结果
 }
-
+//将科学计数法转换为常规书写形式
 fn round_precision_raw_no_div(num: &Ratio<BigUint>, precision: usize) -> BigUint {
     let ten_pow = BigUint::from(10u32).pow(precision);
     (num * ten_pow).round().to_integer()
 }
-
+//将BigDecimal类型转换为科学计数法
 pub fn round_precision(num: &Ratio<BigUint>, precision: usize) -> Ratio<BigUint> {
-    let ten_pow = BigUint::from(10u32).pow(precision);
-    let numerator = (num * &ten_pow).trunc().to_integer();
-    Ratio::new(numerator, ten_pow)
+    let ten_pow = BigUint::from(10u32).pow(precision);//获取次方
+    let numerator = (num * &ten_pow).trunc().to_integer();//生成小数位
+    Ratio::new(numerator, ten_pow)//组合
 }
 
 #[cfg(test)]

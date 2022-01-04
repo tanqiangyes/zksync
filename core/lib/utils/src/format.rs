@@ -1,32 +1,34 @@
 // Built-in deps
-use std::collections::VecDeque;
+use std::collections::VecDeque;//使用可增长的环形缓冲区实现的双端队列
 use std::string::ToString;
 // External deps
 // Workspace deps
 
 /// Formats amount in wei to tokens with precision.
 /// Behaves just like ethers.utils.formatUnits
+/// 将 wei 中的数量格式化为精确的标记。行为就像 ethers.utils.formatUnits
 pub fn format_units(wei: impl ToString, units: u8) -> String {
-    let mut chars: VecDeque<char> = wei.to_string().chars().collect();
+    let mut chars: VecDeque<char> = wei.to_string().chars().collect();//声明一个双端队列，返回一个迭代器
 
-    while chars.len() < units as usize {
+    while chars.len() < units as usize {//强转为usize ,然后填充0
         chars.push_front('0');
     }
-    chars.insert(chars.len() - units as usize, '.');
-    if *chars.front().unwrap() == '.' {
+    chars.insert(chars.len() - units as usize, '.');//在index处插入.符号
+    if *chars.front().unwrap() == '.' {//如果最前面为.号，则说明应该填充0
         chars.push_front('0');
     }
-    while *chars.back().unwrap() == '0' {
+    while *chars.back().unwrap() == '0' {//如果最后面为0，则说明应该去掉无用的0
         chars.pop_back();
     }
-    if *chars.back().unwrap() == '.' {
+    if *chars.back().unwrap() == '.' {//如果删完了，则应该追加一个0，保留小数点
         chars.push_back('0');
     }
-    chars.iter().collect()
+    chars.iter().collect()//返回一个String
 }
 
 /// Formats amount in wei to tokens.
 /// Behaves just like js ethers.utils.formatEther
+/// 转换为wei单位
 pub fn format_ether(wei: impl ToString) -> String {
     format_units(wei, 18)
 }

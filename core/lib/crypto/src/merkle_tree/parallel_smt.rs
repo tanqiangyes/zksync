@@ -16,6 +16,7 @@ use std::{
 /// Nodes are indexed starting with index(root) = 0
 /// To store the index, at least 2 * TREE_HEIGHT bits is required.
 /// Wrapper-structure is used to avoid mixing up with `ItemIndex` on the type level.
+/// 节点从 index(root) = 0 开始索引。要存储索引，至少需要 2 * TREE_HEIGHT 位。包装结构用于避免在类型级别上与“ItemIndex”混淆。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 struct NodeIndex(pub u64);
 
@@ -25,26 +26,28 @@ type ItemIndex = u64;
 /// Tree of depth 0: 1 item (which is root), level 0 only
 /// Tree of depth 1: 2 items, levels 0 and 1
 /// Tree of depth N: 2 ^ N items, 0 <= level < depth
+/// 深度
 type Depth = usize;
 
 /// Index of the node in the vector; slightly inefficient, won't be needed when rust gets non-lexical lifetimes.
+/// 向量中节点的索引；效率稍低，当 rust 获得非词法生命周期时不需要。
 type NodeRef = usize;
 
 /// Sparse Merkle tree with the support of the parallel hashes calculation.
-///
+/// 支持并行哈希计算的稀疏 Merkle 树。
 /// Sparse Merkle tree is basically a [Merkle tree] which is allowed to have
 /// gaps between elements.
-///
+/// 稀疏默克尔树基本上是一个[默克尔树]，它允许元素之间有间隙
 /// The essential operation of this structure is obtaining a root hash of the structure,
 /// which represents the state of all of the tree elements.
-///
+/// 该结构的基本操作是获得该结构的根哈希，它表示所有树元素的状态。
 /// The sparseness of the tree is implementing through a "default leaf" - an item which
 /// hash will be used for the missing indices instead of the actual element hash.
-///
+/// 树的稀疏性是通过“默认叶”实现的——一个散列将用于缺失索引而不是实际元素散列的项目。
 /// Since this means that basically the tree is "full" all the time (all the empty indices
 /// are taken by the "default" element), the tree has fixed capacity and cannot be extended
 /// above that. The root hash is calculated for the full tree every time.
-///
+/// 由于这意味着树基本上一直是“满的”（所有空索引都被“默认”元素占用），因此树具有固定容量并且不能扩展到该容量之上。每次都为整个树计算根哈希。
 /// [Merkle tree]: https://en.wikipedia.org/wiki/Merkle_tree
 #[derive(Debug)]
 pub struct SparseMerkleTree<T, Hash, H>

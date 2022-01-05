@@ -10,7 +10,7 @@ use crate::envy_load;
 /// API configuration.
 #[derive(Debug, Deserialize, Clone, PartialEq)]
 pub struct ApiConfig {
-    /// Common configuration options for the API.
+    /// common configuration options for the api.
     pub common: Common,
     /// Configuration options for the Admin API server.
     pub admin: AdminApi,

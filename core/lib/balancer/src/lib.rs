@@ -4,7 +4,7 @@ use futures::{
     channel::mpsc::{self, Receiver, Sender},
     SinkExt, StreamExt,
 };
-
+//Balancer struct
 pub struct Balancer<R> {
     channels: Vec<Sender<R>>,
     requests: Receiver<R>,
@@ -28,25 +28,25 @@ impl<R> Balancer<R> {
         let mut channels = vec![];
 
         for _ in 0..number_of_items {
-            let (request_sender, request_receiver) = mpsc::channel(channel_capacity);
-            channels.push(request_sender);
-            balanced_items.push(balanced_item.build_with_receiver(request_receiver));
+            let (request_sender, request_receiver) = mpsc::channel(channel_capacity);//生成发送和接收者
+            channels.push(request_sender);//将receiver推入到向量中
+            balanced_items.push(balanced_item.build_with_receiver(request_receiver));//调用方法生成s，并推入到向量中
         }
 
-        (Self { channels, requests }, balanced_items)
+        (Self { channels, requests }, balanced_items)//返回元组
     }
 
-    pub async fn run(mut self) {
+    pub async fn run(mut self) {//异步方法
         // It's an obvious way of balancing. Send an equal number of requests to each ticker
-        let mut channel_indexes = (0..self.channels.len()).into_iter().cycle();
+        let mut channel_indexes = (0..self.channels.len()).into_iter().cycle();//迭代器
         // It's the easiest way how to cycle over channels, because cycle required clone trait.
-        while let Some(request) = self.requests.next().await {
+        while let Some(request) = self.requests.next().await {//等待异步请求
             let channel_index = channel_indexes
                 .next()
                 .expect("Exactly one channel should exists");
             let start = Instant::now();
             self.channels[channel_index]
-                .send(request)
+                .send(request)//向下一个发送者发送请求
                 .await
                 .unwrap_or_default();
             metrics::histogram!("ticker.dispatcher.request", start.elapsed());

@@ -8,6 +8,7 @@ use super::{TimeRange, TxSignature};
 
 /// `Close` transaction was used to remove the account from the network.
 /// Currently unused and left for the backward compatibility reasons.
+/// “关闭”交易用于从网络中删除帐户。目前未使用，出于向后兼容的原因而保留。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Close {

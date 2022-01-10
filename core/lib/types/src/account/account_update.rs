@@ -11,6 +11,7 @@ use crate::tokens::NFT;
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AccountUpdate {
     /// Create a new account.
+    /// 创建
     Create {
         address: Address,
         nonce: Nonce,
@@ -18,11 +19,13 @@ pub enum AccountUpdate {
     /// Delete an existing account.
     /// Note: Currently this kind of update is not used directly in the network.
     /// However, it's used to revert made operation (e.g. to restore state back in time from the last verified block).
+    /// 删除一个存在的账户。注意：目前这种更新不直接在网络中使用。但是，它用于恢复已完成的操作（例如，从上次验证的块中及时恢复状态）。
     Delete {
         address: Address,
         nonce: Nonce,
     },
     /// Change the account balance.
+    /// 更改账户余额
     UpdateBalance {
         old_nonce: Nonce,
         new_nonce: Nonce,
@@ -30,6 +33,7 @@ pub enum AccountUpdate {
         balance_update: (TokenId, BigUint, BigUint),
     },
     /// Change the account Public Key.
+    /// 更改公钥
     ChangePubKeyHash {
         old_pub_key_hash: PubKeyHash,
         new_pub_key_hash: PubKeyHash,
@@ -48,6 +52,7 @@ pub enum AccountUpdate {
 
 impl AccountUpdate {
     /// Generates an account update to revert current update.
+    /// 生成帐户更新以恢复当前更新。
     pub fn reversed_update(&self) -> Self {
         match self {
             AccountUpdate::Create { address, nonce } => AccountUpdate::Delete {

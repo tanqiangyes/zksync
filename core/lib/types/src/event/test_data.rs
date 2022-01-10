@@ -10,6 +10,7 @@ use crate::{AccountId, BlockNumber, Nonce, TokenId};
 
 /// Constructs default values for `BlockDetails` struct. Since block events
 /// can only be filtered by status, these fields are not used.
+/// 为“BlockDetails”结构构造默认值。由于块事件只能按状态过滤，因此不使用这些字段。
 fn get_block_details() -> BlockDetails {
     BlockDetails {
         block_number: BlockNumber(0),
@@ -23,6 +24,7 @@ fn get_block_details() -> BlockDetails {
 }
 
 /// Construct block event with the given block status.
+/// 使用给定的块状态构造块事件。
 pub fn get_block_event(block_status: BlockStatus) -> ZkSyncEvent {
     let block_details = get_block_details();
     let block_event = BlockEvent {
@@ -37,6 +39,7 @@ pub fn get_block_event(block_status: BlockStatus) -> ZkSyncEvent {
 }
 
 /// Construct account event with the given account id, token and status.
+/// 使用给定的帐户 ID、令牌和状态构造帐户事件。
 pub fn get_account_event(
     account_id: AccountId,
     token_id: Option<TokenId>,
@@ -71,6 +74,7 @@ pub fn get_account_event(
 
 /// Construct transaction event with the given type, account id, token and
 /// status.
+/// 使用给定的帐户 ID、令牌和状态构造交易事件。
 pub fn get_transaction_event(
     tx_type: TransactionType,
     account_id: AccountId,

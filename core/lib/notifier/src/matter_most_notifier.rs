@@ -17,13 +17,13 @@ impl MatterMostNotifier {
         let parameters = serde_json::json!({
             "username": serde_json::to_value(&username)?,
             "text": serde_json::to_value(text)?,
-        });
+        });//格式化json
 
         self.client
             .post(self.webhook_url.clone())
             .json(&parameters)
             .send()
-            .await?;
+            .await?;//发送，如果出错，则返回错误给调用者
 
         Ok(())
     }

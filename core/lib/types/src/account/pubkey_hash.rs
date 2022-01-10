@@ -16,9 +16,10 @@ use zksync_crypto::{
 /// to perform an operation.
 ///
 /// `PubKeyHash` is calculated as the Rescue hash of the public key byte sequence.
+/// 帐户所有者公钥的哈希值。这是 zkSync 网络中用于授权交易作者执行操作的基本类型。 `PubKeyHash` 被计算为公钥字节序列的 Rescue 哈希。
 #[derive(Copy, Clone, PartialEq, Default, Eq, Hash, PartialOrd, Ord)]
 pub struct PubKeyHash {
-    pub data: [u8; params::FR_ADDRESS_LEN],
+    pub data: [u8; params::FR_ADDRESS_LEN],//20长度的u8数组
 }
 
 impl std::fmt::Debug for PubKeyHash {
@@ -32,6 +33,7 @@ impl PubKeyHash {
     /// This value is used for new accounts to signalize that `PubKeyHash` was not yet
     /// set for the corresponding account.
     /// Accounts with unset `PubKeyHash` are unable to execute L2 transactions.
+    /// 创建一个未初始化的 `PubkeyHash` 对象。此值用于新帐户以表示尚未为相应帐户设置“PubKeyHash”。未设置“PubKeyHash”的帐户无法执行 L2 交易。
     pub fn zero() -> Self {
         PubKeyHash {
             data: [0; params::FR_ADDRESS_LEN],

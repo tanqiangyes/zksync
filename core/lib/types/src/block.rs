@@ -15,30 +15,38 @@ use zksync_crypto::serialization::FrSerde;
 /// An intermediate state of the block in the zkSync network.
 /// Contains the information about (so far) executed transactions and
 /// meta-information related to the block creating process.
+/// zkSync 网络中区块的中间状态。包含有关（到目前为止）已执行交易的信息和与区块创建过程相关的元信息。
 #[derive(Clone, Debug)]
 pub struct PendingBlock {
     /// Block ID.
     pub number: BlockNumber,
     /// Amount of chunks left in the block.
+    /// 块中剩余的块数。
     pub chunks_left: usize,
     /// ID of the first unprocessed priority operation at the moment
     /// of the block initialization.
+    /// 块初始化时第一个未处理的优先级操作的 ID。
     pub unprocessed_priority_op_before: u64,
     /// Amount of processing iterations applied to the pending block.
     /// If this amount exceeds the limit configured in the server, block will be
     /// sealed even if it's not full.
+    /// 应用于待处理块的处理迭代量。如果此数量超过服务器中配置的限制，即使未满，也会密封块。
     pub pending_block_iteration: usize,
     /// List of successfully executed operations.
+    /// 成功执行的操作列表。
     pub success_operations: Vec<ExecutedOperations>,
     /// List of failed operations.
+    /// 执行失败的操作列表。
     pub failed_txs: Vec<ExecutedTx>,
     /// Previous block root hash
+    /// 上一个区块根哈希
     pub previous_block_root_hash: H256,
     /// Timestamp
     pub timestamp: u64,
 }
 
 /// Executed L2 transaction.
+/// 执行L2交易
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExecutedTx {
     pub signed_tx: SignedZkSyncTx,
@@ -52,6 +60,7 @@ pub struct ExecutedTx {
 
 /// Executed L1 priority operation.
 /// Unlike L2 transactions, L1 priority operations cannot fail in L2.
+/// 执行 L1 优先级操作。与 L2 事务不同，L1 优先级操作不会在 L2 中失败。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ExecutedPriorityOp {
     pub priority_op: PriorityOp,
@@ -62,6 +71,7 @@ pub struct ExecutedPriorityOp {
 
 impl ExecutedPriorityOp {
     /// Returns Id of the account affected by the priority operation.
+    /// 返回受优先操作影响的帐户的 ID。
     pub fn account_id(&self) -> AccountId {
         match &self.priority_op.data {
             crate::ZkSyncPriorityOp::Deposit(_) => {
@@ -77,6 +87,7 @@ impl ExecutedPriorityOp {
 }
 
 /// Representation of executed operation, which can be either L1 or L2.
+/// 已执行操作的表示，可以是 L1 或 L2。
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ExecutedOperations {
@@ -94,6 +105,7 @@ impl ExecutedOperations {
     }
 
     /// Returns the `ZkSyncOp` object associated with the operation, if any.
+    /// 返回与操作关联的“ZkSyncOp”对象（如果有）。
     pub fn get_executed_op(&self) -> Option<&ZkSyncOp> {
         match self {
             ExecutedOperations::Tx(exec_tx) => exec_tx.op.as_ref(),
@@ -110,6 +122,7 @@ impl ExecutedOperations {
     }
 
     /// Returns the public data required for the Ethereum smart contract to commit the operation.
+    /// 返回以太坊智能合约提交操作所需的公共数据。
     pub fn get_eth_public_data(&self) -> Vec<u8> {
         self.get_executed_op()
             .map(ZkSyncOp::public_data)
@@ -118,6 +131,7 @@ impl ExecutedOperations {
 
     /// Gets the witness required for the Ethereum smart contract.
     /// Unlike public data, some operations may not have a witness.
+    /// 获取以太坊智能合约所需的见证人。与公共数据不同，某些操作可能没有见证人。
     pub fn get_eth_witness_bytes(&self) -> Option<Vec<u8>> {
         self.get_executed_op()
             .map(|op| op.eth_witness().unwrap_or_else(Vec::new))
@@ -141,27 +155,36 @@ impl ExecutedOperations {
 }
 
 /// zkSync network block.
+/// 区块
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Block {
     /// Block ID.
     pub block_number: BlockNumber,
     /// Chain root hash obtained after executing this block.
+    /// 执行此块后获得的链根哈希。
     #[serde(with = "FrSerde")]
     pub new_root_hash: Fr,
     /// ID of the zkSync account to which fees are collected.
+    /// 收取费用的 zkSync 账户的 ID。
     pub fee_account: AccountId,
     /// List of operations executed in the block. Includes both L1 and L2 operations.
+    /// 块中执行的操作列表。包括 L1 和 L2 操作。
     pub block_transactions: Vec<ExecutedOperations>,
     /// A tuple of ID of the first unprocessed priority operation before and after this block.
+    /// 此块之前和之后的第一个未处理的优先级操作的 ID 元组。
     pub processed_priority_ops: (u64, u64),
     /// Actual block chunks amount that will be used on contract, such that `block_chunks_sizes >= block.chunks_used()`.
     /// Server and provers may support blocks of several different sizes, and this value must be equal to one of the
     /// supported size values.
+    /// 将在合约中使用的实际块块数量，例如`block_chunks_sizes >= block.chunks_used()`。
+    /// 服务器和证明者可能支持几种不同大小的块，并且该值必须等于支持的大小值之一。
     pub block_chunks_size: usize,
 
     /// Gas limit to be set for the Commit Ethereum transaction.
+    /// 为 Commit Ethereum 交易设置 Gas 限制。
     pub commit_gas_limit: U256,
     /// Gas limit to be set for the Verify Ethereum transaction.
+    /// 为验证以太坊交易设置气体限制。
     pub verify_gas_limit: U256,
     /// Commitment
     pub block_commitment: H256,
@@ -242,6 +265,8 @@ impl Block {
     /// # Panics
     ///
     /// Panics if there is no supported block size to fit all the transactions.
+    /// 创建一个新块，选择适合所有已执行事务的最小支持块大小。
+    /// 如果没有支持的块大小来适应所有事务，则会出现恐慌。
     #[allow(clippy::too_many_arguments)]
     pub fn new_from_available_block_sizes(
         block_number: BlockNumber,
@@ -281,6 +306,7 @@ impl Block {
     }
 
     /// Returns the new state root hash encoded for the Ethereum smart contract.
+    /// 返回为以太坊智能合约编码的新状态根哈希。
     pub fn get_eth_encoded_root(&self) -> H256 {
         let mut be_bytes = [0u8; 32];
         self.new_root_hash
@@ -291,6 +317,7 @@ impl Block {
     }
 
     /// Returns the public data for the Ethereum Commit operation.
+    /// 返回以太坊提交操作的公共数据。
     pub fn get_eth_public_data(&self) -> Vec<u8> {
         let mut executed_tx_pub_data = self
             .block_transactions
@@ -306,6 +333,7 @@ impl Block {
     }
 
     /// Returns eth_witness data and data_size for each operation that has it.
+    /// 为每个拥有它的操作返回 eth_witness 数据和 data_size。
     pub fn get_eth_witness_data(&self) -> (Vec<u8>, Vec<u64>) {
         let mut eth_witness = Vec::new();
         let mut used_bytes = Vec::new();
@@ -323,6 +351,7 @@ impl Block {
     }
 
     /// Returns the number of priority operations processed in this block.
+    /// 返回此块中处理的优先级操作数。
     pub fn number_of_processed_prior_ops(&self) -> u64 {
         self.processed_priority_ops.1 - self.processed_priority_ops.0
     }
@@ -341,6 +370,7 @@ impl Block {
     }
 
     /// Returns the number of Withdrawal and ForcedExit in a block.
+    /// 返回一个区块中 Withdrawal 和 ForcedExit 的数量。
     pub fn get_withdrawals_count(&self) -> usize {
         let mut withdrawals_count = 0;
 
@@ -406,6 +436,7 @@ impl Block {
     }
 
     /// Returns the public data for the Ethereum Commit operation.
+    /// 返回以太坊提交操作的公共数据。
     pub fn get_onchain_op_commitment(&self) -> Vec<u8> {
         let mut res = vec![0u8; self.block_chunks_size];
         for op in self.get_onchain_operations_block_info().0 {

@@ -49,6 +49,7 @@ impl FromStr for OperationType {
 }
 
 /// Stored Ethereum operation.
+/// 存储的以太坊操作。
 #[derive(Debug, Clone)]
 pub struct ETHOperation {
     // Numeric ID of the operation.
@@ -56,6 +57,7 @@ pub struct ETHOperation {
     /// Type of the operation.
     pub op_type: AggregatedActionType,
     /// Optional ZKSync operation associated with Ethereum operation.
+    /// 与以太坊操作相关的可选 ZKSync 操作。
     pub op: Option<(i64, AggregatedOperation)>,
     /// Used nonce (fixed for all the sent transactions).
     pub nonce: U256,
@@ -69,9 +71,11 @@ pub struct ETHOperation {
     pub encoded_tx_data: Vec<u8>,
     /// Flag showing if the operation was completed and
     /// confirmed on the Ethereum blockchain.
+    /// 显示操作是否已完成并在以太坊区块链上确认的标志。
     pub confirmed: bool,
     /// Hash of the accepted Ethereum transaction (if operation
     /// is confirmed).
+    /// 接受的以太坊交易的哈希值（如果操作被确认）。
     pub final_hash: Option<H256>,
 }
 
@@ -80,11 +84,13 @@ impl ETHOperation {
     /// "Stuck" transactions are ones that were not included into any block
     /// within a desirable amount of time, and thus require re-sending with
     /// increased gas amount.
+    /// 检查交易是否被视为“卡住”。 “卡住”交易是指在所需时间内未包含在任何区块中的交易，因此需要以增加的气体量重新发送。
     pub fn is_stuck(&self, current_block: u64) -> bool {
         current_block >= self.last_deadline_block
     }
 
     /// Completes the object state with the data obtained from the database.
+    /// 用从数据库中获取的数据完成对象状态。
     pub fn complete(&mut self, inserted_data: InsertedOperationResponse) {
         self.id = inserted_data.id;
         self.nonce = inserted_data.nonce;
@@ -109,11 +115,14 @@ impl PartialEq for ETHOperation {
 /// Structure representing the result of the insertion of the Ethereum
 /// operation into the database.
 /// Contains the assigned nonce and ID for the operation.
+/// 表示将以太坊操作插入数据库的结果的结构。包含为操作分配的随机数和 ID。
 pub struct InsertedOperationResponse {
     /// Unique numeric identifier of the Ethereum operation.
+    /// 以太坊操作的唯一数字标识符。
     pub id: i64,
     /// Nonce assigned for the Ethereum operation. Meant to be used for all the
     /// transactions sent within one particular Ethereum operation.
+    /// 为以太坊操作分配的随机数。旨在用于在一个特定的以太坊操作中发送的所有交易。
     pub nonce: U256,
 }
 

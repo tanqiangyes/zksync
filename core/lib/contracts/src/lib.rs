@@ -22,9 +22,9 @@ const FORCED_EXIT_CONTRACT_FILE: &str =
 
 fn read_file_to_json_value(path: &str) -> io::Result<serde_json::Value> {
     let zksync_home = std::env::var("ZKSYNC_HOME").unwrap_or_else(|_| ".".into());
-    let path = std::path::Path::new(&zksync_home).join(path);
-    let contents = fs::read_to_string(path)?;
-    let val = serde_json::Value::from_str(&contents)?;
+    let path = std::path::Path::new(&zksync_home).join(path);//拼接路径
+    let contents = fs::read_to_string(path)?;//读取内容到string
+    let val = serde_json::Value::from_str(&contents)?;//解压缩
     Ok(val)
 }
 

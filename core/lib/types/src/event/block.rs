@@ -19,7 +19,7 @@ pub enum BlockStatus {
 #[serde_with::skip_serializing_none]
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockDetails {
-    pub block_number: BlockNumber,
+    pub block_number: BlockNumber,//区块号
 
     #[serde(with = "BytesToHexSerde::<SyncBlockPrefix>")]
     pub new_state_root: Vec<u8>,

@@ -28,6 +28,7 @@ mod tests;
 /// Deposit priority operation transfers funds from the L1 account to the desired L2 account.
 /// If the target L2 account didn't exist at the moment of the operation execution, a new
 /// account will be created.
+/// 存款优先操作将资金从 L1 账户转移到所需的 L2 账户。如果操作执行时目标 L2 帐户不存在，则会创建一个新帐户。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deposit {
     /// Address of the transaction initiator's L1 account.
@@ -43,6 +44,7 @@ pub struct Deposit {
 
 /// Performs a withdrawal of funds without direct interaction with the L2 network.
 /// All the balance of the desired token will be withdrawn to the provided L1 address.
+/// 无需与 L2 网络直接交互即可提取资金。所需代币的所有余额将被提取到提供的 L1 地址。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FullExit {
     pub account_id: AccountId,
@@ -57,6 +59,7 @@ pub struct FullExit {
 }
 
 /// A set of L1 priority operations supported by the zkSync network.
+/// zkSync 网络支持的一组 L1 优先级操作。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ZkSyncPriorityOp {
@@ -107,6 +110,7 @@ impl ZkSyncPriorityOp {
     }
 
     /// Parses legacy priority operation from the Ethereum logs.
+    /// 从以太坊日志中解析遗留优先级操作。
     pub fn legacy_parse_from_priority_queue_logs(
         pub_data: &[u8],
         op_type_id: u8,
@@ -217,6 +221,7 @@ impl ZkSyncPriorityOp {
     }
 
     /// Parses priority operation from the Ethereum logs.
+    /// 从以太坊日志中解析优先级操作。
     pub fn parse_from_priority_queue_logs(
         pub_data: &[u8],
         op_type_id: u8,
@@ -339,6 +344,7 @@ impl ZkSyncPriorityOp {
     }
 
     /// Returns the amount of chunks required to include the priority operation into the block.
+    /// 返回将优先级操作包含到块中所需的块数量。
     pub fn chunks(&self) -> usize {
         match self {
             Self::Deposit(_) => DepositOp::CHUNKS,
@@ -347,6 +353,7 @@ impl ZkSyncPriorityOp {
     }
 
     /// Returns data needed to cancel priority queue events in exodus mode.
+    /// 返回在 exodus 模式下取消优先队列事件所需的数据。
     fn get_args_for_priority_queue_cancel<'a, I: IntoIterator<Item = &'a Self> + 'a>(
         queue_entries: I,
     ) -> (u64, Vec<Vec<u8>>) {
@@ -377,6 +384,7 @@ impl ZkSyncPriorityOp {
 }
 
 /// Priority operation description with the metadata required for server to process it.
+/// 带有服务器处理它所需的元数据的优先级操作描述。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PriorityOp {
     /// Unique ID of the priority operation.

@@ -27,15 +27,22 @@ use crate::tx::{error::TransactionSignatureError, TimeRange};
 /// This operation is expected to be used in cases when account in L1
 /// cannot prove its identity in L2 (e.g. it's an existing smart contract),
 /// so the funds won't get "locked" in L2.
+/// `ForcedExit` 交易用于从无主账户中提取资金到其对应的 L1 地址。
+/// 此函数的调用者将支付操作费用，并且无法控制提取资金的地址。
+/// 应用了“ForcedExit”的帐户必须没有设置公钥哈希。
+/// 此操作预计用于 L1 中的帐户无法证明其在 L2 中的身份（例如，它是现有的智能合约）的情况，因此资金不会在 L2 中“锁定”。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ForcedExit {
     /// zkSync network account ID of the transaction initiator.
+    /// 交易发起方的zkSync网络账户ID。
     pub initiator_account_id: AccountId,
     /// Address of the account to withdraw funds from.
     /// Also this field represents the address in L1 to which funds will be withdrawn.
+    /// 提取资金的账户地址。此字段还表示 L1 中的资金将被提取到的地址。
     pub target: Address,
     /// Type of token for withdrawal. Also represents the token in which fee will be paid.
+    /// 提款的代币类型。也代表将支付费用的代币。
     pub token: TokenId,
     /// Fee for the transaction.
     #[serde(with = "BigUintSerdeAsRadix10Str")]
@@ -54,6 +61,7 @@ pub struct ForcedExit {
 
 impl ForcedExit {
     /// Unique identifier of the transaction type in zkSync network.
+    /// 交易类型唯一标识符
     pub const TX_TYPE: u8 = 8;
 
     /// Creates transaction from all the required fields.
@@ -87,6 +95,7 @@ impl ForcedExit {
 
     /// Creates a signed transaction using private key and
     /// checks for the transaction correcteness.
+    /// 使用私钥创建签名交易并检查交易的正确性。
     pub fn new_signed(
         initiator_account_id: AccountId,
         target: Address,
@@ -149,6 +158,11 @@ impl ForcedExit {
     /// - `token` field must be within supported range.
     /// - `fee` field must represent a packable value.
     /// - zkSync signature must correspond to the PubKeyHash of the account.
+    /// 验证交易正确性：
+    /// - `initiator_account_id` 字段必须在支持的范围内。
+    /// - `token` 字段必须在支持的范围内。
+    /// - `fee` 字段必须表示可打包的值。
+    /// - zkSync 签名必须与账户的 PubKeyHash 对应。
     pub fn check_correctness(&mut self) -> bool {
         let mut valid = is_fee_amount_packable(&self.fee)
             && self.initiator_account_id <= max_account_id()
@@ -161,7 +175,7 @@ impl ForcedExit {
         if valid {
             if self.fee != BigUint::zero() {
                 // Fee can only be paid in processable tokens
-                valid = self.token <= max_processable_token();
+                valid = self.token <= max_processable_token();//不能超限
             }
             let signer = self.verify_signature();
             valid = valid && signer.is_some();
@@ -196,6 +210,11 @@ impl ForcedExit {
     /// [Fee: {fee} {token}]
     ///
     /// Note that the second line is optional.
+    /// 获取我们希望由以太坊帐户密钥签名的消息的第一部分。唯一的区别是缺少“nonce”，因为它是在事务批处理消息的末尾添加的。
+    /// 格式为：
+    /// ForcedExit {token} to: {target}
+    /// [Fee: {fee} {token}]
+    /// 注意第二行是可选的。
     pub fn get_ethereum_sign_message_part(&self, token_symbol: &str, decimals: u8) -> String {
         let mut message = format!(
             "ForcedExit {token} to: {to:?}",

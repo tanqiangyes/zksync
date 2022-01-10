@@ -31,22 +31,23 @@ pub use self::{
 use crate::operations::error::{PublicDataDecodeError, UnexpectedOperationType};
 
 /// zkSync network operation.
+/// zkSync网络操作
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ZkSyncOp {
-    Deposit(Box<DepositOp>),
-    Transfer(Box<TransferOp>),
+    Deposit(Box<DepositOp>),//存款
+    Transfer(Box<TransferOp>),//转移
     /// Transfer to new operation is represented by `Transfer` transaction,
     /// same as `Transfer` operation. The difference is that for `TransferToNew` operation
     /// recipient account doesn't exist and has to be created.
-    TransferToNew(Box<TransferToNewOp>),
-    Withdraw(Box<WithdrawOp>),
-    WithdrawNFT(Box<WithdrawNFTOp>),
+    TransferToNew(Box<TransferToNewOp>),//转移，但是对方账户不存在，必须创建
+    Withdraw(Box<WithdrawOp>),//提现
+    WithdrawNFT(Box<WithdrawNFTOp>),//提现NFT
     #[doc(hidden)]
     Close(Box<CloseOp>),
-    FullExit(Box<FullExitOp>),
-    ChangePubKeyOffchain(Box<ChangePubKeyOp>),
-    ForcedExit(Box<ForcedExitOp>),
+    FullExit(Box<FullExitOp>),//full退出
+    ChangePubKeyOffchain(Box<ChangePubKeyOp>),//改变公钥
+    ForcedExit(Box<ForcedExitOp>),//强制退出
     MintNFTOp(Box<MintNFTOp>),
     /// `NoOp` operation cannot be directly created, but it's used to fill the block capacity.
     Noop(NoopOp),
@@ -96,6 +97,7 @@ impl ZkSyncOp {
     /// Operations that have witness data:
     ///
     /// - `ChangePubKey`;
+    /// 获取以太坊智能合约所需的见证人。与公共数据不同，某些操作可能没有见证人。
     pub fn eth_witness(&self) -> Option<Vec<u8>> {
         match self {
             ZkSyncOp::ChangePubKeyOffchain(op) => Some(op.get_eth_witness()),
@@ -121,6 +123,7 @@ impl ZkSyncOp {
     }
 
     /// Attempts to restore the operation from the public data committed on the Ethereum smart contract.
+    /// 尝试从以太坊智能合约上提交的公共数据中恢复操作。
     pub fn from_public_data(bytes: &[u8]) -> Result<Self, PublicDataDecodeError> {
         let op_type: u8 = *bytes.first().ok_or(PublicDataDecodeError::EmptyData)?;
         match op_type {
@@ -164,6 +167,8 @@ impl ZkSyncOp {
     /// prior to v6 upgrade. The token id bit width is 2 bytes instead of 4.
     ///
     /// Used by the data restore module for recovering old operations.
+    /// 在 v6 升级之前尝试从以太坊智能合约上提交的公共数据中恢复操作。
+    /// 令牌 id 位宽是 2 个字节而不是 4 个字节。由数据恢复模块用于恢复旧操作。
     pub fn from_legacy_public_data(bytes: &[u8]) -> Result<Self, PublicDataDecodeError> {
         let op_type: u8 = *bytes.first().ok_or(PublicDataDecodeError::EmptyData)?;
         match op_type {
@@ -197,6 +202,7 @@ impl ZkSyncOp {
     }
 
     /// Returns the expected number of chunks for a certain type of operation.
+    /// 返回特定类型操作的预期块数。
     pub fn public_data_length(op_type: u8) -> Result<usize, UnexpectedOperationType> {
         match op_type {
             NoopOp::OP_CODE => Ok(NoopOp::CHUNKS),
@@ -218,6 +224,7 @@ impl ZkSyncOp {
 
     /// Returns the expected number of chunks for a certain type of operation
     /// prior to v6 upgrade.
+    /// 在 v6 升级之前返回特定类型操作的预期块数。
     pub fn legacy_public_data_length(op_type: u8) -> Result<usize, UnexpectedOperationType> {
         match op_type {
             NoopOp::OP_CODE => Ok(NoopOp::CHUNKS),
@@ -235,6 +242,7 @@ impl ZkSyncOp {
     }
 
     /// Attempts to interpret the operation as the L2 transaction.
+    /// 尝试将操作解释为 L2 事务。
     pub fn try_get_tx(&self) -> Result<ZkSyncTx, UnexpectedOperationType> {
         match self {
             ZkSyncOp::Transfer(op) => Ok(ZkSyncTx::Transfer(Box::new(op.tx.clone()))),
@@ -253,6 +261,7 @@ impl ZkSyncOp {
     }
 
     /// Attempts to interpret the operation as the L1 priority operation.
+    /// 尝试将操作解释为 L1 优先级操作。
     pub fn try_get_priority_op(&self) -> Result<ZkSyncPriorityOp, UnexpectedOperationType> {
         match self {
             ZkSyncOp::Deposit(op) => Ok(ZkSyncPriorityOp::Deposit(op.priority_op.clone())),
@@ -262,6 +271,7 @@ impl ZkSyncOp {
     }
 
     /// Returns the list of account IDs affected by this operation.
+    /// 返回受此操作影响的帐户 ID 列表。
     pub fn get_updated_account_ids(&self) -> Vec<AccountId> {
         match self {
             ZkSyncOp::Noop(op) => op.get_updated_account_ids(),

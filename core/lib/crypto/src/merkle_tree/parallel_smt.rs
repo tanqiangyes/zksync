@@ -79,6 +79,7 @@ where
 
 // Manual implementation of `Clone` is required, since `RwLock` is not `Clone` by default,
 // and `Arc` is not a solution (it will lead to the shallow copies, while we need a deep ones).
+// `Clone` 需要手动实现，因为默认情况下 `RwLock` 不是 `Clone`，并且 `Arc` 不是解决方案（它会导致浅拷贝，而我们需要深拷贝）。
 impl<T, Hash, H> Clone for SparseMerkleTree<T, Hash, H>
 where
     T: GetBits + Clone,
@@ -109,6 +110,7 @@ where
 }
 
 /// Merkle Tree branch node.
+/// Merkle 树分支节点
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Node {
     depth: Depth,
@@ -118,6 +120,7 @@ pub struct Node {
 }
 
 /// Child node direction relatively to its parent.
+/// 子节点相对于其父节点的方向
 #[derive(Debug, Clone, Copy)]
 enum NodeDirection {
     Left,
@@ -126,8 +129,10 @@ enum NodeDirection {
 
 impl NodeDirection {
     /// Given the parent index, calculates the child index with respect to the child direction.
+    /// 给定父索引，计算相对于子方向的子索引。
     pub fn child_index(self, parent_idx: NodeIndex) -> NodeIndex {
         // Given the parent index N, its child has indices (2*N) and (2*N + 1).
+        // 给定父索引 N，它的子索引有 (2N) 和 (2N + 1)。
         match self {
             Self::Left => NodeIndex(parent_idx.0 * 2),
             Self::Right => NodeIndex(parent_idx.0 * 2 + 1),
@@ -135,6 +140,7 @@ impl NodeDirection {
     }
 
     /// Creates a child node direction basing on its index.
+    /// 根据其索引创建子节点方向。
     pub fn from_idx(idx: NodeIndex) -> Self {
         // Left nodes are always even, right nodes are always odd.
         let is_left = (idx.0 & 1) == 0;
@@ -150,6 +156,9 @@ impl NodeDirection {
     /// Direction is assumed to be related to the "primary" element. Thus,
     /// for the `Left` direction, the order is ("primary", "secondary") - "primary" on the left,
     /// for the `Right`, the order is ("secondary", "primary") - "primary" on the right.
+    /// 根据方向，对两个元素进行排序：“主要”和“次要”。假定方向与“主要”元素相关。
+    /// 因此，对于 `Left` 方向，顺序是 ("primary", "secondary") - "primary" 在左边，
+    /// 对于 `Right`，顺序是 ("secondary", "primary") - "primary" “ 在右侧。
     pub fn order_elements<T>(self, primary_el: T, secondary_el: T) -> (T, T) {
         match self {
             Self::Left => (primary_el, secondary_el),
@@ -167,11 +176,12 @@ where
     /// Creates a new tree of certain depth (which determines the
     /// capacity of the tree, since the given height will not be
     /// exceeded).
+    /// 创建一个特定深度的新树（这决定了树的容量，因为不会超过给定的高度）。
     pub fn new(tree_depth: Depth) -> Self {
         assert!(tree_depth > 1);
-        let hasher = H::default();
-        let items = FnvHashMap::default();
-        let nodes = vec![Node {
+        let hasher = H::default();//获取默认hash函数
+        let items = FnvHashMap::default();//生成FnvHashMap
+        let nodes = vec![Node {//生成node
             index: NodeIndex(1),
             depth: 0,
             left: None,
@@ -180,14 +190,14 @@ where
 
         let mut prehashed = Vec::with_capacity(tree_depth);
         let mut cur = hasher.hash_bits(T::default().get_bits_le());
-        prehashed.push(cur.clone());
-        for i in 0..tree_depth {
-            cur = hasher.compress(&cur, &cur, i);
-            prehashed.push(cur.clone());
+        prehashed.push(cur.clone());//生成hash向量，并向里面推入当前的第一个默认元素hash
+        for i in 0..tree_depth {//循环推入
+            cur = hasher.compress(&cur, &cur, i);//合并两个子hash
+            prehashed.push(cur.clone());//推入
         }
-        prehashed.reverse();
+        prehashed.reverse();//原地反转切片中元素的顺序
 
-        let cache = RwLock::new(FnvHashMap::default());
+        let cache = RwLock::new(FnvHashMap::default());//缓存
 
         Self {
             tree_depth,

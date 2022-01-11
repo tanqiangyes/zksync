@@ -67,6 +67,7 @@ impl ConnectionPool {
     /// Establishes a pool of the connections to the database and
     /// creates a new `ConnectionPool` object.
     /// pool_max_size - number of connections in pool, if not set env variable "DATABASE_POOL_SIZE" is going to be used.
+    /// 建立与数据库的连接池并创建一个新的 `ConnectionPool` 对象
     pub fn new(pool_max_size: Option<u32>) -> Self {
         let database_url = get_database_url();
         let max_size = pool_max_size.unwrap_or_else(|| parse_env("DATABASE_POOL_SIZE"));
@@ -84,6 +85,9 @@ impl ConnectionPool {
     ///
     /// This method is intended to be used in crucial contexts, where the
     /// database access is must-have (e.g. block committer).
+    /// 通过可恢复的连接创建一个“StorageProcessor”实体。
+    /// 在数据库中断时，连接将阻塞线程，直到它能够恢复连接（或者，如果在多次重试后连接无法恢复，这将被视为不可恢复的数据库错误并导致恐慌）。
+    /// 此方法旨在用于必须具有数据库访问权限的关键上下文（例如块提交者）。
     pub async fn access_storage(&self) -> Result<StorageProcessor<'_>, SqlxError> {
         let start = Instant::now();
         let connection = self.get_pooled_connection().await;

@@ -209,7 +209,7 @@ impl ZkSyncState {
         }
         total_chunks
     }
-
+    //操作类型，传输：到已有的地址；到新的地址； 其他：返回最小的chunk
     pub fn chunks_for_tx(&self, franklin_tx: &ZkSyncTx) -> usize {
         match franklin_tx {
             ZkSyncTx::Transfer(tx) => {

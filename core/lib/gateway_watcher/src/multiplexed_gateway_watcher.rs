@@ -219,7 +219,7 @@ pub fn run_multiplexed_gateway_watcher(
         Some(config.gateway_watcher.task_limit()),
     );
 
-    tokio::spawn(gateway_watcher.run())
+    tokio::spawn(gateway_watcher.run())//运行监控
 }
 
 /// Runs `MultiplexedGatewayWatcher` as a tokio task for provided ethereum gateway if it's multiplexed.

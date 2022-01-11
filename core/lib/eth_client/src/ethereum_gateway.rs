@@ -51,9 +51,9 @@ pub enum EthereumGateway {
 impl EthereumGateway {
     pub fn from_config(config: &ZkSyncConfig) -> Self {
         if config.eth_client.web3_url.len() == 1 {
-            let transport = web3::transports::Http::new(&config.eth_client.web3_url()).unwrap();
+            let transport = web3::transports::Http::new(&config.eth_client.web3_url()).unwrap();//连接服务器
 
-            EthereumGateway::Direct(ETHDirectClient::new(
+            EthereumGateway::Direct(ETHDirectClient::new(//原子引用计数
                 transport,
                 zksync_contract(),
                 config.eth_sender.sender.operator_commit_eth_addr,

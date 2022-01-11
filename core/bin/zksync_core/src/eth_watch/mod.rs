@@ -130,6 +130,7 @@ pub struct EthWatch<W: EthClient> {
     client: W,
     eth_state: ETHState,
     /// All ethereum events are accepted after sufficient confirmations to eliminate risk of block reorg.
+    /// 在充分确认以太坊重组风险后，所有以太坊事件都将被接收
     number_of_confirmations_for_event: u64,
     mode: WatcherMode,
 }
@@ -148,7 +149,7 @@ impl<W: EthClient> EthWatch<W> {
     fn set_new_state(&mut self, new_state: ETHState) {
         self.eth_state = new_state;
     }
-
+    //获取没有确认的事件
     async fn get_unconfirmed_ops(
         &mut self,
         current_ethereum_block: u64,
@@ -158,28 +159,33 @@ impl<W: EthClient> EthWatch<W> {
         // `+ 1` is added because if we subtract number of confirmations, we'll obtain the last block
         // which has operations that must be processed. So, for the unconfirmed operations, we must
         // start from the block next to it.
+        // 我们想要扫描从最新的块到可能具有未确认优先级操作的最旧的块的间隔。
+        // 添加 `+ 1` 是因为如果我们减去确认次数，我们将获得最后一个必须处理的具有操作的块。所以，对于未确认的操作，我们必须从它旁边的块开始。
         let block_from_number =
             current_ethereum_block.saturating_sub(self.number_of_confirmations_for_event) + 1;
         let block_from = BlockNumber::Number(block_from_number.into());
         let block_to = BlockNumber::Latest;
 
         self.client
-            .get_priority_op_events(block_from, block_to)
+            .get_priority_op_events(block_from, block_to)//获取优先操作事件
             .await
     }
-
+    //同步区块
     async fn process_new_blocks(&mut self, last_ethereum_block: u64) -> anyhow::Result<()> {
         debug_assert!(self.eth_state.last_ethereum_block() < last_ethereum_block);
-        debug_assert!(self.eth_state.last_ethereum_block() < last_ethereum_block);
+        debug_assert!(self.eth_state.last_ethereum_block() < last_ethereum_block);//double check
 
         // We have to process every block between the current and previous known values.
         // This is crucial since `eth_watch` may enter the backoff mode in which it will skip many blocks.
         // Note that we don't have to add `number_of_confirmations_for_event` here, because the check function takes
         // care of it on its own. Here we calculate "how many blocks should we watch", and the offsets with respect
         // to the `number_of_confirmations_for_event` are calculated by `update_eth_state`.
-        let mut next_priority_op_id = self.eth_state.next_priority_op_id();
-        let previous_ethereum_block = self.eth_state.last_ethereum_block();
-        let block_difference = last_ethereum_block.saturating_sub(previous_ethereum_block);
+        // 我们必须处理当前和先前已知值之间的每个块。这是至关重要的，因为 `eth_watch` 可能会进入退避模式，在这种模式下它会跳过许多块。
+        // 请注意，我们不必在此处添加 `number_of_confirmations_for_event`，因为检查函数会自行处理它。
+        // 这里我们计算“我们应该观看多少块”，相对于 `number_of_confirmations_for_event` 的偏移量由 `update_eth_state` 计算。
+        let mut next_priority_op_id = self.eth_state.next_priority_op_id();//下一个应该优先处理的序列号
+        let previous_ethereum_block = self.eth_state.last_ethereum_block();//上一个eth区块号
+        let block_difference = last_ethereum_block.saturating_sub(previous_ethereum_block);//计算区块差额
 
         let updated_state = self
             .update_eth_state(last_ethereum_block, block_difference)
@@ -245,29 +251,29 @@ impl<W: EthClient> EthWatch<W> {
         self.set_new_state(new_state);
         Ok(())
     }
-
+    // 重新存储来自于eth的状态
     async fn restore_state_from_eth(&mut self, last_ethereum_block: u64) -> anyhow::Result<()> {
         let new_state = self
             .update_eth_state(last_ethereum_block, PRIORITY_EXPIRATION)
-            .await?;
+            .await?;//更新状态
 
-        self.set_new_state(new_state);
+        self.set_new_state(new_state);//设置新状态
 
         vlog::debug!("ETH state: {:#?}", self.eth_state);
         Ok(())
     }
-
+    //更新存储的以太坊状态，当前区块号，以及需要更新的区块长度
     async fn update_eth_state(
         &mut self,
         current_ethereum_block: u64,
         unprocessed_blocks_amount: u64,
     ) -> anyhow::Result<ETHState> {
         let new_block_with_accepted_events =
-            current_ethereum_block.saturating_sub(self.number_of_confirmations_for_event);
+            current_ethereum_block.saturating_sub(self.number_of_confirmations_for_event);//减去需要等待最终性的区块高度
         let previous_block_with_accepted_events =
-            new_block_with_accepted_events.saturating_sub(unprocessed_blocks_amount);
+            new_block_with_accepted_events.saturating_sub(unprocessed_blocks_amount);//减去没有同步的区块
 
-        let unconfirmed_queue = self.get_unconfirmed_ops(current_ethereum_block).await?;
+        let unconfirmed_queue = self.get_unconfirmed_ops(current_ethereum_block).await?;//获取没有确认的操作
         let priority_queue: HashMap<u64, _> = self
             .client
             .get_priority_op_events(
@@ -277,21 +283,21 @@ impl<W: EthClient> EthWatch<W> {
             .await?
             .into_iter()
             .map(|priority_op| (priority_op.serial_id, priority_op.into()))
-            .collect();
+            .collect();//优先级操作
         let new_tokens = self
             .client
             .get_new_tokens_events(
                 BlockNumber::Number(previous_block_with_accepted_events.into()),
                 BlockNumber::Number(new_block_with_accepted_events.into()),
             )
-            .await?;
+            .await?;//新增token操作
         let new_register_nft_factory_events = self
             .client
             .get_new_register_nft_factory_events(
                 BlockNumber::Number(previous_block_with_accepted_events.into()),
                 BlockNumber::Number(new_block_with_accepted_events.into()),
             )
-            .await?;
+            .await?;//注册nft操作
 
         let mut new_priority_op_ids: Vec<_> = priority_queue.keys().cloned().collect();
         new_priority_op_ids.sort_unstable();
@@ -352,7 +358,7 @@ impl<W: EthClient> EthWatch<W> {
 
         new_tokens
     }
-
+    //获取优先队列请求
     fn get_priority_requests(&self, first_serial_id: u64, max_chunks: usize) -> Vec<PriorityOp> {
         let mut result = Vec::new();
 
@@ -409,7 +415,7 @@ impl<W: EthClient> EthWatch<W> {
             .find(|op| op.tx_hash() == hash || op.eth_hash.as_ref() == hash.as_ref())
             .cloned()
     }
-
+    //获取某地址存款优先列表
     fn get_ongoing_deposits_for(&self, address: Address) -> Vec<PriorityOp> {
         self.eth_state
             .unconfirmed_queue()
@@ -424,7 +430,7 @@ impl<W: EthClient> EthWatch<W> {
             .cloned()
             .collect()
     }
-
+    //获取操作列表，并作了分页
     fn get_ongoing_ops_for(
         &self,
         query: PaginationQuery<PendingOpsRequest>,
@@ -507,10 +513,10 @@ impl<W: EthClient> EthWatch<W> {
 
     async fn poll_eth_node(&mut self) -> anyhow::Result<()> {
         let start = Instant::now();
-        let last_block_number = self.client.block_number().await?;
+        let last_block_number = self.client.block_number().await?;//获取新的区块号
 
-        if last_block_number > self.eth_state.last_ethereum_block() {
-            self.process_new_blocks(last_block_number).await?;
+        if last_block_number > self.eth_state.last_ethereum_block() {//区块状态已经更新了
+            self.process_new_blocks(last_block_number).await?;//进行同步新的区块
         }
 
         metrics::histogram!("eth_watcher.poll_eth_node", start.elapsed());
@@ -550,8 +556,9 @@ impl<W: EthClient> EthWatch<W> {
         // As infura may be not responsive, we want to retry the query until we've actually got the
         // block number.
         // Normally, however, this loop is not expected to last more than one iteration.
+        // 由于 infura 可能没有响应，我们想重试查询，直到我们真正得到块号。然而，通常情况下，这个循环预计不会持续超过一次迭代。
         let block = loop {
-            let block = self.client.block_number().await;
+            let block = self.client.block_number().await;//获取当前的主网区块号
 
             match block {
                 Ok(block) => {
@@ -568,12 +575,12 @@ impl<W: EthClient> EthWatch<W> {
                 }
             }
         };
-
+        //已经取得区块高度，退出来
         // Code above is prepared for the possible rate limiting by `infura`, and will wait until we
         // can interact with the node again. We're not expecting the rate limiting to be applied
         // immediately after that, thus any error on this stage is considered critical and
         // irrecoverable.
-        self.restore_state_from_eth(block)
+        self.restore_state_from_eth(block)//存储新的区块头
             .await
             .expect("Unable to restore ETHWatcher state");
 
@@ -622,11 +629,11 @@ impl<W: EthClient> EthWatch<W> {
                     resp.send(unconfirmed_ops).ok();
                 }
                 EthWatchRequest::GetUnconfirmedOpByEthHash { eth_hash, resp } => {
-                    let unconfirmed_op = self.find_ongoing_op_by_eth_hash(eth_hash);
+                    let unconfirmed_op = self.find_ongoing_op_by_eth_hash(eth_hash);//找到对应hash的交易
                     resp.send(unconfirmed_op).unwrap_or_default();
                 }
                 EthWatchRequest::GetUnconfirmedOpByTxHash { tx_hash, resp } => {
-                    let unconfirmed_op = self.find_ongoing_op_by_tx_hash(tx_hash);
+                    let unconfirmed_op = self.find_ongoing_op_by_tx_hash(tx_hash);//找到对应消息整体hash的交易
                     resp.send(unconfirmed_op).unwrap_or_default();
                 }
                 EthWatchRequest::GetUnconfirmedOpByAnyHash { hash, resp } => {
@@ -682,20 +689,20 @@ pub fn start_eth_watch(
     eth_gateway: EthereumGateway,
     config_options: &ZkSyncConfig,
 ) -> JoinHandle<()> {
-    let eth_client = EthHttpClient::new(
+    let eth_client = EthHttpClient::new(//客户端
         eth_gateway,
         config_options.contracts.contract_addr,
         config_options.contracts.governance_addr,
     );
 
-    let eth_watch = EthWatch::new(
+    let eth_watch = EthWatch::new(//注册监听
         eth_client,
         config_options.eth_watch.confirmations_for_eth_event,
     );
 
-    tokio::spawn(eth_watch.run(eth_req_receiver));
+    tokio::spawn(eth_watch.run(eth_req_receiver));//线程运行监听接收
 
-    let poll_interval = config_options.eth_watch.poll_interval();
+    let poll_interval = config_options.eth_watch.poll_interval();//间隔时间
     tokio::spawn(async move {
         let mut timer = time::interval(poll_interval);
 

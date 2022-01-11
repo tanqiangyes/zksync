@@ -181,11 +181,14 @@ impl ZkSyncStateInitParams {
             // and stored pending block will be outdated.
             // Thus, if the stored pending block has the lower number than
             // last committed one, we just ignore it.
+            // 如果在生成多个待处理块节点后生成了完整块，它们可能会在第一次迭代时被密封，并且存储的待处理块将过时。
+            // 因此，如果存储的待处理块的编号小于上次提交的块，我们就忽略它。
             return None;
         }
 
         // We've checked that pending block is greater than the last committed block,
         // but it must be greater exactly by 1.
+        // 我们已经检查了挂起的块大于最后一个提交的块，但它必须恰好比 1 大。
         assert_eq!(*pending_block.number, *self.last_block_number + 1);
 
         Some(pending_block)
@@ -473,6 +476,10 @@ impl ZkSyncStateKeeper {
             // `apply_txs_batch` to preserve the original execution order. Otherwise there may
             // be a state corruption, if e.g. `Deposit` will be executed before `TransferToNew`
             // and account IDs will change.
+            // 将已执行的操作转换为未执行的操作，因此它们将再次执行。
+            // 由于它是一个待处理的块，因此状态更新实际上并未应用到数据库中（因为它仅在提交完整块时才会发生）。
+            // 我们直接使用 `apply_tx` 和 `apply_priority_op` 方法而不是 `apply_txs_batch` 来保留原始执行顺序。
+            // 否则可能会出现状态腐败，例如`Deposit` 将在 `TransferToNew` 之前执行，并且帐户 ID 将更改。
             let mut txs_count = 0;
             let mut priority_op_count = 0;
             for operation in pending_block.success_operations {
@@ -507,13 +514,13 @@ impl ZkSyncStateKeeper {
     }
 
     pub async fn create_genesis_block(pool: ConnectionPool, fee_account_address: &Address) {
-        let start = Instant::now();
+        let start = Instant::now();//开始时间
         let mut storage = pool
-            .access_storage()
+            .access_storage()//获取存储连接
             .await
             .expect("db connection failed for statekeeper");
         let mut transaction = storage
-            .start_transaction()
+            .start_transaction()//开启事务
             .await
             .expect("unable to create db transaction in statekeeper");
 
@@ -634,17 +641,19 @@ impl ZkSyncStateKeeper {
             }
         }
     }
-
+    //执行propose区块
     async fn execute_proposed_block(&mut self, proposed_block: ProposedBlock) {
         let start = Instant::now();
         let mut executed_ops = Vec::new();
 
         // If pending block is empty we update timestamp
+        // 如果待处理块为空，我们将更新时间戳
         if self.pending_block.success_operations.is_empty() {
             self.pending_block.timestamp = system_time_timestamp();
         }
 
         // We want to store this variable before moving anything from the pending block.
+        // 我们希望在从待处理块中移动任何内容之前存储此变量。
         let empty_proposed_block = proposed_block.is_empty();
 
         let mut priority_op_queue = proposed_block
@@ -657,7 +666,7 @@ impl ZkSyncStateKeeper {
                     executed_ops.push(exec_op);
                 }
                 Err(priority_op) => {
-                    self.seal_pending_block().await;
+                    self.seal_pending_block().await;//满了？完成块
 
                     priority_op_queue.push_front(priority_op);
                 }
@@ -737,6 +746,7 @@ impl ZkSyncStateKeeper {
     }
 
     // Err if there is no space in current block
+    // 应用优先操作，如果没有空间，则会报错
     fn apply_priority_op(
         &mut self,
         priority_op: PriorityOp,
@@ -954,30 +964,34 @@ impl ZkSyncStateKeeper {
         metrics::histogram!("state_keeper.apply_batch", start.elapsed());
         Ok(executed_operations)
     }
-
+    //应用交易
     fn apply_tx(&mut self, tx: &SignedZkSyncTx) -> Result<ExecutedOperations, ()> {
         let start = Instant::now();
-        let chunks_needed = self.state.chunks_for_tx(&tx);
+        let chunks_needed = self.state.chunks_for_tx(&tx);//获取所需的chunk
 
         // If we can't add the tx to the block due to the size limit, we return this tx,
         // seal the block and execute it again.
+        // 如果由于大小限制无法将 tx 添加到块中，我们将返回此 tx，将块密封并再次执行。
         if self.pending_block.chunks_left < chunks_needed {
             return Err(());
         }
 
         // Check if adding this transaction to the block won't make the contract operations
         // too expensive.
+        // 检查是否将此交易添加到区块中不会使合约操作过于昂贵。
         let non_executed_op = self.state.zksync_tx_to_zksync_op(tx.tx.clone());
         if let Ok(non_executed_op) = non_executed_op {
             // We only care about successful conversions, since if conversion failed,
             // then transaction will fail as well (as it shares the same code base).
+            // 我们只关心成功的转换，因为如果转换失败，那么事务也会失败（因为它共享相同的代码库）。
             if !self
                 .pending_block
                 .gas_counter
-                .can_include(&[non_executed_op])
+                .can_include(&[non_executed_op])//看看gas是否足够包含
             {
                 // We've reached the gas limit, seal the block.
                 // This transaction will go into the next one.
+                // 我们已经达到了气体限制，密封块。这笔交易将进入下一个块。
                 return Err(());
             }
         }
@@ -1045,10 +1059,12 @@ impl ZkSyncStateKeeper {
     }
 
     /// Finalizes the pending block, transforming it into a full block.
+    /// 完成待处理的块，将其转换为一个完整的块。
     async fn seal_pending_block(&mut self) {
         let start = Instant::now();
 
         // Apply fees of pending block
+        //应用pending 区块中的费用
         let fee_updates = self
             .state
             .collect_fee(&self.pending_block.collected_fees, self.fee_account_id);
@@ -1066,6 +1082,7 @@ impl ZkSyncStateKeeper {
             ),
         );
         // Once block is sealed, we refresh the counters for the next block.
+        // 一旦区块被密封，我们会刷新下一个区块的计数器。
         self.success_txs_pending_len = 0;
         self.failed_txs_pending_len = 0;
 
@@ -1080,7 +1097,7 @@ impl ZkSyncStateKeeper {
         let commit_gas_limit = pending_block.gas_counter.commit_gas_limit();
         let verify_gas_limit = pending_block.gas_counter.verify_gas_limit();
 
-        let block = Block::new_from_available_block_sizes(
+        let block = Block::new_from_available_block_sizes(//从可用的区块空间生成区块
             self.state.block_number,
             self.state.root_hash(),
             self.fee_account_id,
@@ -1096,20 +1113,20 @@ impl ZkSyncStateKeeper {
             pending_block.timestamp,
         );
 
-        self.pending_block.previous_block_root_hash = block.get_eth_encoded_root();
+        self.pending_block.previous_block_root_hash = block.get_eth_encoded_root();//获取eth encode跟
 
         let block_metadata = BlockMetadata {
             fast_processing: pending_block.fast_processing_required,
         };
 
-        let block_commit_request = BlockCommitRequest {
+        let block_commit_request = BlockCommitRequest {//区块提交请求
             block,
             block_metadata,
             accounts_updated: pending_block.account_updates.clone(),
         };
         let first_update_order_id = pending_block.stored_account_updates;
         let account_updates = pending_block.account_updates[first_update_order_id..].to_vec();
-        let applied_updates_request = AppliedUpdatesRequest {
+        let applied_updates_request = AppliedUpdatesRequest {//应用更新请求
             account_updates,
             first_update_order_id,
         };

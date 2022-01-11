@@ -86,7 +86,7 @@ impl EthHttpClient {
             governance_contract_addr,
         }
     }
-
+    //获取事件
     async fn get_events<T>(
         &self,
         from: BlockNumber,
@@ -105,9 +105,9 @@ impl EthHttpClient {
             .from_block(from)
             .to_block(to)
             .topics(Some(topics), None, None, None)
-            .build();
+            .build();//构建filter
 
-        let mut logs = self.client.logs(filter).await?;
+        let mut logs = self.client.logs(filter).await?;//过滤获得事件
         let is_possible_to_sort_logs = logs.iter().all(|log| log.log_index.is_some());
         if is_possible_to_sort_logs {
             logs.sort_by_key(|log| {
@@ -129,6 +129,7 @@ impl EthHttpClient {
 
 #[async_trait::async_trait]
 impl EthClient for EthHttpClient {
+    //获取优先事件
     async fn get_priority_op_events(
         &self,
         from: BlockNumber,
@@ -137,13 +138,14 @@ impl EthClient for EthHttpClient {
         let start = Instant::now();
 
         let result = self
-            .get_events(from, to, vec![self.topics.new_priority_request])
+            .get_events(from, to, vec![self.topics.new_priority_request])//获得事件集合
             .await;
 
-        if let Err(err) = &result {
+        if let Err(err) = &result {//检查错误
             // Check whether the error is related to way too many results being returned.
+            // 检查错误是否与返回的结果过多有关。
             const LIMIT_ERR: &str = "query returned more than";
-            if err.to_string().contains(LIMIT_ERR) {
+            if err.to_string().contains(LIMIT_ERR) {//返回数量太多
                 // OK, we've got too many results.
 
                 // Get the numeric block IDs.
@@ -151,6 +153,7 @@ impl EthClient for EthHttpClient {
                     BlockNumber::Number(num) => num,
                     _ => {
                         // We don't expect not number identifiers for the "from" block
+                        // 我们不希望“from”块没有编号标识符
                         return result;
                     }
                 };
@@ -164,13 +167,14 @@ impl EthClient for EthHttpClient {
                 };
 
                 // Now we have to divide the range into two halfs and recursively try to get it.
+                // 现在我们必须将范围分成两半并递归地尝试得到它。
                 if to_number <= from_number || to_number - from_number == 1.into() {
                     // We can't divide ranges anymore.
                     anyhow::bail!("Got too much events in one block");
                 }
 
                 let range_diff = to_number - from_number;
-                let mid = from_number + (range_diff / 2u64);
+                let mid = from_number + (range_diff / 2u64);//中间位
 
                 // We divide range in two halves and merge results.
                 // If half of the range still has too many events, it'd be split further recursively.
@@ -181,7 +185,7 @@ impl EthClient for EthHttpClient {
                 let mut second_half = self
                     .get_priority_op_events(BlockNumber::Number(mid + 1u64), to)
                     .await?;
-
+                // 二分查出来，然后拼接到一起
                 first_half.append(&mut second_half);
 
                 return Ok(first_half);

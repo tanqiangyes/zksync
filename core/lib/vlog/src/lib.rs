@@ -58,6 +58,7 @@ fn get_sentry_url() -> Option<Dsn> {
 /// If the sentry URL is provided via an environment variable, this function will also initialize sentry.
 /// Returns a sentry client guard. The full description can be found in the official documentation:
 /// https://docs.sentry.io/platforms/rust/#configure
+/// 使用跟踪初始化日志并设置日志格式 如果哨兵 URL 是通过环境变量提供的，则此函数还将初始化哨兵。返回一个哨兵客户端守卫。完整的描述可以在官方文档中找到：
 pub fn init() -> Option<ClientInitGuard> {
     let log_format = std::env::var("MISC_LOG_FORMAT").unwrap_or_else(|_| "plain".to_string());
     match log_format.as_str() {

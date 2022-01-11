@@ -24,6 +24,7 @@ pub struct ETHState {
     /// priority operations received by the contract.
     last_ethereum_block_backup: u64,
     /// Serial id of the next priority operation Ethereum watcher should process.
+    /// 以太坊观察者应该处理的下一个优先操作的序列号。
     next_priority_op_id: SerialId,
     /// Queue of priority operations that are accepted by Ethereum network,
     /// but not yet have enough confirmations to be processed by zkSync.
@@ -69,11 +70,11 @@ impl ETHState {
             register_nft_factory_events,
         }
     }
-
+    //当前状态里面的区块号
     pub fn last_ethereum_block(&self) -> u64 {
         self.last_ethereum_block
     }
-
+    //优先队列
     pub fn priority_queue(&self) -> &HashMap<u64, ReceivedPriorityOp> {
         &self.priority_queue
     }
@@ -89,7 +90,7 @@ impl ETHState {
     pub fn new_tokens(&self) -> &[NewTokenEvent] {
         &self.new_tokens
     }
-
+    // 下一个应该优先处理的序列号
     pub fn next_priority_op_id(&self) -> SerialId {
         self.next_priority_op_id
     }

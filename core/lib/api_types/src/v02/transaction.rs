@@ -164,7 +164,7 @@ impl L1Transaction {
             _ => None,
         }
     }
-
+    //取出pending的消息
     pub fn from_pending_op(
         op: ZkSyncPriorityOp,
         eth_hash: H256,

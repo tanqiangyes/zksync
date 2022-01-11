@@ -702,6 +702,7 @@ impl<'a, 'c> BlockSchema<'a, 'c> {
     }
 
     /// Retrieves the latest pending block from the database, if such is present.
+    /// 从数据库中检索最新的待处理块（如果存在）。
     pub async fn load_pending_block(&mut self) -> QueryResult<Option<PendingBlock>> {
         let start = Instant::now();
         let mut transaction = self.0.start_transaction().await?;

@@ -17,6 +17,7 @@ use zksync_eth_client::EthereumGateway;
 use zksync_gateway_watcher::run_gateway_watcher_if_multiplexed;
 use zksync_storage::ConnectionPool;
 use zksync_types::{tokens::get_genesis_token_list, Token, TokenId, TokenKind};
+use crate::mpsc::Receiver;
 
 const DEFAULT_CHANNEL_CAPACITY: usize = 32_768;
 
@@ -51,11 +52,12 @@ pub async fn wait_for_tasks(task_futures: Vec<JoinHandle<()>>) {
 }
 
 /// Inserts the initial information about zkSync tokens into the database.
+/// 将有关 zkSync 令牌的初始信息插入数据库。异步函数
 pub async fn genesis_init(config: &ZkSyncConfig) {
-    let pool = ConnectionPool::new(Some(1));
+    let pool = ConnectionPool::new(Some(1));//初始化数据库连接池，最大连接数1
 
     vlog::info!("Generating genesis block.");
-    ZkSyncStateKeeper::create_genesis_block(
+    ZkSyncStateKeeper::create_genesis_block(//创建创世块
         pool.clone(),
         &config.chain.state_keeper.fee_account_addr,
     )
@@ -95,6 +97,14 @@ pub async fn genesis_init(config: &ZkSyncConfig) {
 /// - block proposer, module to create block proposals for state keeper.
 /// - committer, module to store pending and completed blocks into the database.
 /// - private Core API server.
+/// 启动核心应用程序，
+/// 该应用程序具有以下子模块：
+/// - Ethereum Watcher，用于监控链上操作的模块。
+/// - zkSync 状态保持器，执行和密封块的模块。
+/// - mempool，用于组织传入交易的模块。
+/// - 区块提议者，为状态守护者创建区块提议的模块。
+/// - 提交者，将待处理和已完成的块存储到数据库中的模块。
+/// - 私有核心 API 服务器。
 pub async fn run_core(
     connection_pool: ConnectionPool,
     panic_notify: mpsc::Sender<bool>,
@@ -110,11 +120,10 @@ pub async fn run_core(
         mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
     let (mempool_block_request_sender, mempool_block_request_receiver) =
         mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
-
     let (processed_tx_events_sender, processed_tx_events_receiver) =
         mpsc::channel(DEFAULT_CHANNEL_CAPACITY);
 
-    // Start Ethereum Watcher.
+    // Start Ethereum Watcher. 启动以太坊监听器
     let eth_watch_task = start_eth_watch(
         eth_watch_req_sender.clone(),
         eth_watch_req_receiver,
@@ -123,15 +132,16 @@ pub async fn run_core(
     );
 
     // Insert pending withdrawals into database (if required)
+    // 将待处理的提款插入数据库（如果需要）
     let mut storage_processor = connection_pool.access_storage().await?;
 
     // Start State Keeper.
     let state_keeper_init = ZkSyncStateInitParams::restore_from_db(&mut storage_processor).await?;
     let pending_block = state_keeper_init
-        .get_pending_block(&mut storage_processor)
+        .get_pending_block(&mut storage_processor)//获取未处理的区块
         .await;
 
-    let state_keeper = ZkSyncStateKeeper::new(
+    let state_keeper = ZkSyncStateKeeper::new(//初始化状态保存器
         state_keeper_init,
         config.chain.state_keeper.fee_account_addr,
         state_keeper_req_receiver,
@@ -141,10 +151,10 @@ pub async fn run_core(
         config.chain.state_keeper.fast_block_miniblock_iterations as usize,
         processed_tx_events_sender,
     );
-    let state_keeper_task = start_state_keeper(state_keeper, pending_block);
+    let state_keeper_task = start_state_keeper(state_keeper, pending_block);//运行状态保存器
 
     // Start committer.
-    let committer_task = run_committer(
+    let committer_task = run_committer(//运行区块提交器
         proposed_blocks_receiver,
         mempool_block_request_sender.clone(),
         connection_pool.clone(),

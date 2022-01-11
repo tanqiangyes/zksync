@@ -43,6 +43,7 @@ pub struct StateSchema<'a, 'c>(pub &'a mut StorageProcessor<'c>);
 impl<'a, 'c> StateSchema<'a, 'c> {
     /// Stores the list of updates to the account map in the database.
     /// At this step, the changes are not verified yet, and thus are not applied.
+    /// 将帐户映射的更新列表存储在数据库中。在此步骤，更改尚未验证，因此未应用。
     pub async fn commit_state_update(
         &mut self,
         block_number: BlockNumber,
@@ -50,10 +51,11 @@ impl<'a, 'c> StateSchema<'a, 'c> {
         first_update_order_id: usize,
     ) -> QueryResult<()> {
         let start = Instant::now();
-        let mut transaction = self.0.start_transaction().await?;
+        let mut transaction = self.0.start_transaction().await?;//事务
 
         // Simply go through the every account update, and update the corresponding table.
         // This may look scary, but every match arm is very simple by its nature.
+        // 只需通过每个帐户更新，并更新相应的表。这可能看起来很吓人，但每个火柴臂本质上都非常简单。
 
         let update_order_ids =
             first_update_order_id..first_update_order_id + accounts_updated.len();

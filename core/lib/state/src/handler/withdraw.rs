@@ -58,7 +58,7 @@ impl TxHandler<Withdraw> for ZkSyncState {
             executed_op: ZkSyncOp::Withdraw(Box::new(op)),
         })
     }
-
+    //应用操作
     fn apply_op(
         &mut self,
         op: &Self::Op,
@@ -70,10 +70,10 @@ impl TxHandler<Withdraw> for ZkSyncState {
         );
 
         let mut updates = Vec::new();
-        let mut from_account = self.get_account(op.account_id).unwrap();
+        let mut from_account = self.get_account(op.account_id).unwrap();//获取操作账户
 
-        let from_old_balance = from_account.get_balance(op.tx.token);
-        let from_old_nonce = from_account.nonce;
+        let from_old_balance = from_account.get_balance(op.tx.token);//获取余额
+        let from_old_nonce = from_account.nonce;//获取nonce
         invariant!(
             op.tx.nonce == from_old_nonce,
             WithdrawOpError::NonceMismatch
@@ -83,11 +83,11 @@ impl TxHandler<Withdraw> for ZkSyncState {
             WithdrawOpError::InsufficientBalance
         );
 
-        from_account.sub_balance(op.tx.token, &(&op.tx.amount + &op.tx.fee));
-        *from_account.nonce += 1;
+        from_account.sub_balance(op.tx.token, &(&op.tx.amount + &op.tx.fee));//减去传输值和交易费
+        *from_account.nonce += 1;//nonce+1
 
-        let from_new_balance = from_account.get_balance(op.tx.token);
-        let from_new_nonce = from_account.nonce;
+        let from_new_balance = from_account.get_balance(op.tx.token);//获取余额
+        let from_new_nonce = from_account.nonce;//获取nonce
 
         self.insert_account(op.account_id, from_account);
 

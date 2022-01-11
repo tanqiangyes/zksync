@@ -35,26 +35,26 @@ async fn main() -> anyhow::Result<()> {
     let server_mode = if opt.genesis {
         ServerCommand::Genesis
     } else {
-        _sentry_guard = vlog::init();
+        _sentry_guard = vlog::init();//初始化日志系统
         ServerCommand::Launch
     };
 
-    if let ServerCommand::Genesis = server_mode {
+    if let ServerCommand::Genesis = server_mode {//初始化模式，进行初始化之后返回
         vlog::info!("Performing the server genesis initialization",);
-        genesis_init(&config).await;
+        genesis_init(&config).await;//初始化
         return Ok(());
     }
 
     // It's a `ServerCommand::Launch`, perform the usual routine.
     vlog::info!("Running the zkSync server");
 
-    let connection_pool = ConnectionPool::new(None);
-    let eth_gateway = EthereumGateway::from_config(&config);
+    let connection_pool = ConnectionPool::new(None);//创建连接池
+    let eth_gateway = EthereumGateway::from_config(&config);//创建路由，可以1-多个路由
 
-    let gateway_watcher_task_opt = run_gateway_watcher_if_multiplexed(eth_gateway.clone(), &config);
+    let gateway_watcher_task_opt = run_gateway_watcher_if_multiplexed(eth_gateway.clone(), &config);//如果有多个client，则启动监控器
 
     // Handle Ctrl+C
-    let (stop_signal_sender, mut stop_signal_receiver) = mpsc::channel(256);
+    let (stop_signal_sender, mut stop_signal_receiver) = mpsc::channel(256);//设置停止监听
     {
         let stop_signal_sender = RefCell::new(stop_signal_sender.clone());
         ctrlc::set_handler(move || {
@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run prometheus data exporter.
     let (prometheus_task_handle, counter_task_handle) =
-        run_prometheus_exporter(connection_pool.clone(), config.api.prometheus.port, true);
+        run_prometheus_exporter(connection_pool.clone(), config.api.prometheus.port, true);//运行监控数据导出器
 
     // Run core actors.
     vlog::info!("Starting the Core actors");

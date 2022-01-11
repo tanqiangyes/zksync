@@ -41,7 +41,7 @@ pub struct ExecutedOpsNotify {
 }
 
 const PROOF_POLL_INTERVAL: Duration = Duration::from_secs(1);
-
+// handle新提交的区块
 async fn handle_new_commit_task(
     mut rx_for_ops: Receiver<CommitRequest>,
     mut mempool_req_sender: Sender<MempoolBlocksRequest>,
@@ -50,7 +50,7 @@ async fn handle_new_commit_task(
     while let Some(request) = rx_for_ops.next().await {
         match request {
             CommitRequest::Block((block_commit_request, applied_updates_req)) => {
-                commit_block(
+                commit_block(//提交区块
                     block_commit_request,
                     applied_updates_req,
                     &pool,
@@ -118,7 +118,7 @@ async fn save_pending_block(
 
     metrics::histogram!("committer.save_pending_block", start.elapsed());
 }
-
+//提交区块
 async fn commit_block(
     block_commit_request: BlockCommitRequest,
     applied_updates_request: AppliedUpdatesRequest,
@@ -144,6 +144,7 @@ async fn commit_block(
 
     // This is needed to keep track of how many priority ops are in each block
     // and trigger grafana alerts if there are suspiciously few
+    // 这需要跟踪每个块中有多少优先级操作，并在可疑情况下触发 grafana 警报
     let total_priority_ops = block
         .block_transactions
         .iter()
@@ -153,7 +154,7 @@ async fn commit_block(
         "committer.priority_ops_per_block",
         total_priority_ops as f64
     );
-
+    //提交但没有commit
     transaction
         .chain()
         .state_schema()

@@ -66,6 +66,7 @@ pub(super) trait DatabaseInterface {
     ) -> anyhow::Result<()>;
 
     /// Adds a new tx info to the previously started Ethereum operation.
+    /// 向先前启动的以太坊操作添加新的 tx 信息。
     async fn update_eth_tx(
         &self,
         connection: &mut StorageProcessor<'_>,
@@ -235,12 +236,14 @@ impl DatabaseInterface for Database {
     ) -> anyhow::Result<bool> {
         // If the ID of the current operation is 1, then this is the first transaction
         // and it is not needed for checking confirmation.
+        // 如果当前操作的 ID 为 1，则这是第一笔交易，不需要检查确认。
         if op.id == 1 {
             return Ok(true);
         }
 
         // Since the operations are sent to the Ethereum one by one,
         // we simply consider the operation with ID less by one.
+        // 由于操作是一一发送到以太坊的，所以我们简单地考虑将 ID 减一的操作。
         let previous_op = op.id - 1;
         let confirmed = connection
             .ethereum_schema()

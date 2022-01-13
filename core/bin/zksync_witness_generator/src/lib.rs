@@ -281,7 +281,7 @@ async fn required_replicas<DB: DatabaseInterface>(
 
     Ok(HttpResponse::Ok().json(response))
 }
-
+//更新证明任务队列
 async fn update_prover_job_queue_loop<DB: DatabaseInterface>(database: DB) {
     let mut interval = tokio::time::interval(Duration::from_secs(5));
     loop {
@@ -394,7 +394,7 @@ pub fn run_prover_server<DB: DatabaseInterface>(
             let actix_runtime = actix_rt::System::new();
 
             actix_runtime.block_on(async move {
-                tokio::spawn(update_prover_job_queue_loop(database.clone()));
+                tokio::spawn(update_prover_job_queue_loop(database.clone()));//线程处理证明任务队列更新
 
                 let last_verified_block = {
                     let mut storage = database
@@ -410,6 +410,7 @@ pub fn run_prover_server<DB: DatabaseInterface>(
                 };
 
                 // Start pool maintainer threads.
+                // 启动池维护者线程。
                 for offset in 0..witness_generator_opts.witness_generators {
                     let start_block = (last_verified_block + offset + 1) as u32;
                     let block_step = witness_generator_opts.witness_generators as u32;

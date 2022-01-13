@@ -382,7 +382,7 @@ where
         }
     }
 }
-
+//运行强制退出合约监控器
 pub fn run_forced_exit_contract_watcher(
     core_api_client: CoreApiClient,
     connection_pool: ConnectionPool,
@@ -400,6 +400,7 @@ pub fn run_forced_exit_contract_watcher(
 
         // It is fine to unwrap here, since without it there is not way we
         // can be sure that the forced exit sender will work properly
+        // 在这里打开包装很好，因为没有它，我们无法确定强制退出发送方将正常工作
         let id = prepare_forced_exit_sender_account(
             connection_pool.clone(),
             core_api_client.clone(),

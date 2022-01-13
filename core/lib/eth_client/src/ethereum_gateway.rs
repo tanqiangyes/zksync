@@ -150,6 +150,7 @@ impl EthereumGateway {
 
     /// Sends the transaction to the Ethereum blockchain.
     /// Transaction is expected to be encoded as the byte sequence.
+    /// 将交易发送到以太坊区块链。交易预计将被编码为字节序列。
     pub async fn send_raw_tx(&self, tx: Vec<u8>) -> Result<H256, anyhow::Error> {
         delegate_call!(self.send_raw_tx(tx))
     }

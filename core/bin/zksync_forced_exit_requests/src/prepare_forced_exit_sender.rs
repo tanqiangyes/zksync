@@ -50,6 +50,7 @@ pub async fn prepare_forced_exit_sender_account(
     // such step is vital for testing locally.
 
     // Waiting until the sender has an id (sending funds to the account should be done by an external script)
+    // 等到发件人有一个 id（向帐户发送资金应该由外部脚本完成）
     let id = wait_for_account_id(&mut storage, sender_address)
         .await
         .expect("Failed to get account id for forced exit sender");

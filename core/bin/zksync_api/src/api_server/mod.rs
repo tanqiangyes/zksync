@@ -37,7 +37,7 @@ pub fn start_api_server(
 ) {
     let (sign_check_sender, sign_check_receiver) = mpsc::channel(32768);
 
-    signature_checker::start_sign_checker_detached(
+    signature_checker::start_sign_checker_detached(//接收验证请求
         eth_gateway,
         sign_check_receiver,
         panic_notify.clone(),

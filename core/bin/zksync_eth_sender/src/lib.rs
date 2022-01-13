@@ -49,6 +49,9 @@ const RATE_LIMIT_HTTP_CODE: &str = "429";
 /// already know that these transactions were considered stuck. Thus, lack of
 /// response (either successful or unsuccessful) for any of the old txs means
 /// that this transaction is still stuck.
+/// `TxCheckMode` 枚举决定了获取 tx 状态的策略。最新发送的交易可能处于待处理状态（我们仍在等待它），
+/// 但如果某些以太坊操作有多个 tx，则意味着我们已经知道这些交易被认为是卡住了。
+/// 因此，任何旧 txs 都没有响应（成功或不成功）意味着该交易仍然卡住。
 #[derive(Debug, Clone, PartialEq)]
 enum TxCheckMode {
     /// Mode for the latest sent tx (pending state is allowed).
@@ -183,9 +186,11 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
     }
 
     /// Main routine of `ETHSender`.
+    /// `ETHSender` 的主程序
     pub async fn run(mut self) {
         // `eth_sender` must perform some of the activities only once per block change.
         // Having `0` as an initial value is to ensure that on the first iteration we will run all the activities.
+        // `eth_sender` 必须在每次块更改时只执行一次某些活动。将“0”作为初始值是为了确保在第一次迭代中我们将运行所有活动
         let mut last_used_block = 0;
         loop {
             // We perform a loading routine every X seconds.
@@ -198,8 +203,9 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
 
             if self.options.sender.is_enabled {
                 // ...and proceed them.
-                last_used_block = self.proceed_next_operations(last_used_block).await;
+                last_used_block = self.proceed_next_operations(last_used_block).await;//同步交易状态
                 // Update the gas adjuster to maintain the up-to-date max gas price limit.
+                // 更新 gas 调节器以保持最新的最大 gas 价格限制。
                 self.gas_adjuster
                     .keep_updated(&self.ethereum, &self.db)
                     .await;
@@ -247,10 +253,14 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
     ///   managing the rest (e.g. by sending a supplement txs for stuck operations).
     ///
     /// It returns ethereum block number for which these things were done.
+    /// 这个方法主要做两件事情：
+    /// 1. 从 `TxQueue` 中弹出所有可用的事务并发送它们。
+    /// 2. 筛选所有正在进行的操作，过滤已完成的操作并管理其余操作（例如，通过发送卡住操作的补充 txs）。
+    /// 它返回完成这些事情的以太坊块号。
     async fn proceed_next_operations(&mut self, last_used_block: u64) -> u64 {
         let start = Instant::now();
 
-        let current_block = match self.ethereum.block_number().await {
+        let current_block = match self.ethereum.block_number().await {//获取区块号
             Ok(current_block) => current_block.as_u64(),
             Err(e) => {
                 Self::process_error(e).await;
@@ -263,6 +273,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                 Self::process_error(e).await;
                 // Return the unperformed operation to the queue, since failing the
                 // operation initialization means that it was not stored in the database.
+                // 将未执行的操作返回到队列中，因为操作初始化失败意味着它没有存储在数据库中。
                 if let Err(err_message) = self.tx_queue.return_popped(tx) {
                     panic!(
                         "Failed return previous sent operation to the queue: {}",
@@ -277,16 +288,21 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
         // `proceed_next_operations`, so if the block number hasn't changed we shouldn't request
         // states because it would be spare requests.
         // The ongoing operations list would be the same for the next step
+        // 在 `perform_commitment_step` 中，我们请求交易状态。我们已经在上一次调用 `proceed_next_operations` 时请求了编号为 `last_used_block` 的块的状态，
+        // 所以如果块编号没有改变，我们不应该请求状态，因为这将是备用请求。正在进行的操作列表将与下一步相同
         if last_used_block != current_block {
             // Queue for storing all the operations that were not finished at this iteration.
+            // 用于存储本次迭代中未完成的所有操作的队列。
             let mut new_ongoing_ops = VecDeque::new();
 
             // Commit the next operations (if any).
+            // 提交下一个操作（如果有）。
             while let Some(mut current_op) = self.ongoing_ops.pop_front() {
                 // We perform a commitment step here. In case of error, we suppose that this is some
                 // network issue which won't appear the next time, so we report the situation to the
                 // log and consider the operation pending (meaning that we won't process it on this
                 // step, but will try to do so on the next one).
+                // 我们在这里执行一个承诺步骤。如果出现错误，我们认为这是下次不会出现的网络问题，所以我们将情况报告到日志并考虑操作挂起（意味着我们不会在这一步处理它，但会尝试在下一个上这样做）。
                 let commitment = match self
                     .perform_commitment_step(&mut current_op, current_block)
                     .await
@@ -301,10 +317,12 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                 match commitment {
                     OperationCommitment::Committed => {
                         // Free a slot for the next tx in the queue.
+                        // 为队列中的下一个 tx 释放一个插槽。
                         self.tx_queue.report_commitment();
                     }
                     OperationCommitment::Pending => {
                         // Poll this operation on the next iteration.
+                        // 在下一次迭代中轮询此操作。
                         new_ongoing_ops.push_back(current_op);
                     }
                 }
@@ -336,6 +354,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
     }
 
     /// Stores the new operation in the database and sends the corresponding transaction.
+    /// 将新操作存储在数据库中并发送相应的事务。
     async fn initialize_operation(&mut self, tx: TxData, current_block: u64) -> anyhow::Result<()> {
         let deadline_block = self.get_deadline_block(current_block);
         let gas_price = self
@@ -350,6 +369,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
         let (new_op, signed_tx) = {
             // First, we should store the operation in the database and obtain the assigned
             // operation ID and nonce. Without them we won't be able to sign the transaction.
+            // 首先，我们应该将操作存储在数据库中，并获取分配的操作 ID 和 nonce。没有它们，我们将无法签署交易。
             let assigned_data = self
                 .db
                 .save_new_eth_tx(
@@ -389,6 +409,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
 
         // We should store the operation as `ongoing` **before** sending it as well,
         // so if sending will fail, we won't forget about it.
+        // 我们也应该在发送之前将操作存储为 `ongoing`，所以如果发送失败，我们不会忘记它。
         self.ongoing_ops.push_back(new_op.clone());
 
         // After storing all the tx data in the database, we can finally send the tx.
@@ -401,6 +422,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
             // and resent. We can't do anything about this failure either, since it's most probably is not
             // related to the node logic, so we just log this error and pretend to have this operation
             // processed.
+            // 发送 tx 错误并不重要：这将导致交易被视为卡住并重新发送。对于这个失败我们也无能为力，因为它很可能与节点逻辑无关，所以我们只是记录这个错误并假装处理了这个操作。
             vlog::warn!("Error while sending the operation: {}", e);
         }
 
@@ -443,6 +465,10 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
     /// - If the transaction is stuck, sends a supplement transaction for it.
     /// - If the transaction is failed, handles the failure according to the failure
     ///   processing policy.
+    /// 通过检查其状态并执行以下操作来处理正在进行的操作：
+    /// - 如果事务处于待处理状态或已完成，则停止执行（因为与操作无关）。
+    /// - 如果交易被卡住，则为其发送补充交易。
+    /// - 如果事务失败，按照失败处理策略处理失败。
     async fn perform_commitment_step(
         &mut self,
         op: &mut ETHOperation,
@@ -457,6 +483,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
         // Check statuses of existing transactions.
         // Go through every transaction in a loop. We will exit this method early
         // if there will be discovered a pending or successfully committed transaction.
+        // 检查现有交易的状态。循环处理每一笔交易。如果发现有待处理或成功提交的事务，我们将提前退出此方法。
         for (idx, tx_hash) in op.used_tx_hashes.iter().enumerate() {
             let mode = if idx == op.used_tx_hashes.len() - 1 {
                 TxCheckMode::Latest
@@ -470,7 +497,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
             {
                 TxCheckOutcome::Pending => {
                     // Transaction is pending, nothing to do yet.
-                    return Ok(OperationCommitment::Pending);
+                    return Ok(OperationCommitment::Pending);//pending状态不需要做什么，直接返回
                 }
                 TxCheckOutcome::Committed => {
                     let mut connection = self.db.acquire_connection().await?;
@@ -492,6 +519,17 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                     //
                     // For commit operations consequences aren't that drastic, but still it's not correct to confirm
                     // operations out of order.
+                    // 虽然交易是按顺序发送的，由于 nonce 必须按顺序处理，并且也以相同的顺序检查承诺，但我们仍然必须检查先前的操作是否已确认。
+                    // 考虑以下场景：
+                    // 1. 两个验证操作被发送到以太坊并包含在一个区块中。
+                    // 2. 我们开始循环检查发送的操作。
+                    // 3. 由于没有足够的确认，第一个操作被视为待处理。
+                    // 4. 检查后，创建一个新的以太坊区块。
+                    // 5. 在循环的后面，我们检查第二个验证操作，它被认为已提交。
+                    // 6.根据操作Verify2更新状态。
+                    // 7. 在下一轮，Verify1 也被视为已确认。
+                    // 8. 根据操作Verify1更新状态，可能有部分数据被覆盖。
+                    // 对于提交操作的后果并没有那么严重，但是确认无序操作仍然是不正确的
                     if !self
                         .db
                         .is_previous_operation_confirmed(&mut transaction, &op)
@@ -524,6 +562,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                         receipt,
                     );
                     // Process the failure according to the chosen policy.
+                    // 根据选择的策略处理失败。
                     self.failure_handler(&receipt).await;
                 }
             }
@@ -531,11 +570,14 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
 
         // Reaching this point will mean that the latest transaction got stuck.
         // We should create another tx based on it, and send it.
+        // 达到这一点将意味着最新的交易卡住了。我们应该基于它创建另一个 tx，然后发送它。
         let deadline_block = self.get_deadline_block(current_block);
         // Raw tx contents are the same for every transaction, so we just
         // create a new one from the old one with updated parameters.
+        // 每个交易的原始 tx 内容都是相同的，因此我们只需使用更新的参数从旧交易中创建一个新交易。
         let new_tx = self.create_supplement_tx(deadline_block, op).await?;
         // New transaction should be persisted in the DB *before* sending it.
+        // 新事务应在发送之前保存在数据库中。
 
         let mut connection = self.db.acquire_connection().await?;
         let mut transaction = connection.start_transaction().await?;
@@ -579,12 +621,14 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
     }
 
     /// Helper method encapsulating the logic of determining the next deadline block.
+    /// 帮助方法封装了确定下一个截止日期块的逻辑。
     fn get_deadline_block(&self, current_block: u64) -> u64 {
         current_block + self.options.sender.expected_wait_time_block
     }
 
     /// Looks up for a transaction state on the Ethereum chain
     /// and reduces it to the simpler `TxCheckOutcome` report.
+    /// 在以太坊链上查找交易状态并将其简化为更简单的“TxCheckOutcome”报告
     async fn check_transaction_state(
         &self,
         mode: TxCheckMode,
@@ -599,7 +643,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
 
         let outcome = match status {
             // Successful execution.
-            Some(status) if status.success => {
+            Some(status) if status.success => {//成功且有足够多的确认
                 // Check if transaction has enough confirmations.
                 if status.confirmations >= self.options.sender.wait_confirmations {
                     TxCheckOutcome::Committed
@@ -608,9 +652,10 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                 }
             }
             // Non-successful execution, report the failure with details.
+            // 执行不成功，详细报告失败。
             Some(status) => {
                 // Check if transaction has enough confirmations.
-                if status.confirmations >= self.options.sender.wait_confirmations {
+                if status.confirmations >= self.options.sender.wait_confirmations {//已经有足够多的确认了，这个交易失败
                     assert!(
                         status.receipt.is_some(),
                         "Receipt should exist for a failed transaction"
@@ -622,9 +667,10 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
                 }
             }
             // Stuck transaction.
-            None if op.is_stuck(current_block) => TxCheckOutcome::Stuck,
+            None if op.is_stuck(current_block) => TxCheckOutcome::Stuck,//被卡住的交易，需要增加gas
             // No status yet. If this is a latest transaction, it's pending.
             // For an old tx it means that it's still stuck.
+            // 还没有状态。如果这是最新交易，则为待处理。对于旧的 tx，这意味着它仍然被卡住。
             None => match mode {
                 TxCheckMode::Latest => TxCheckOutcome::Pending,
                 TxCheckMode::Old => TxCheckOutcome::Stuck,
@@ -695,6 +741,7 @@ impl<DB: DatabaseInterface> ETHSender<DB> {
 
     /// Creates a new transaction for the existing Ethereum operation.
     /// This method is used to create supplement transactions instead of the stuck one.
+    /// 为现有的以太坊操作创建一个新事务。此方法用于创建补充交易而不是卡住交易。
     async fn create_supplement_tx(
         &mut self,
         deadline_block: u64,

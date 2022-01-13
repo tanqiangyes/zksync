@@ -96,9 +96,11 @@ impl<DB: DatabaseInterface> GasAdjuster<DB> {
     /// Performs an actualization routine for `GasAdjuster`:
     /// This method is intended to be invoked periodically, and it updates the
     /// current max gas price limit according to the configurable update interval.
+    /// 执行 `GasAdjuster` 的实现例程：此方法旨在定期调用，并根据可配置的更新间隔更新当前的最大 gas 价格限制。
     pub async fn keep_updated(&mut self, ethereum: &EthereumGateway, db: &DB) {
         if self.last_sample_added.elapsed() >= parameters::sample_adding_interval() {
             // Report the current price to be gathered by the statistics module.
+            // 报告统计模块要收集的当前价格。
             match ethereum.get_gas_price().await {
                 Ok(network_price) => {
                     self.statistics.add_sample(network_price);

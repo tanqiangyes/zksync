@@ -18,6 +18,7 @@ use zksync_utils::panic_notify::ThreadPanicNotify;
 ///
 /// This will generate and store in db witnesses for blocks with indexes
 /// start_block, start_block + block_step, start_block + 2*block_step, ...
+/// 该结构的基本部分是“维护”功能，它永远运行并将数据添加到数据库中。这将为索引为 start_block、start_block + block_step、start_block + 2block_step 的块生成并存储在数据库中。
 pub struct WitnessGenerator<DB: DatabaseInterface> {
     /// Connection to the database.
     database: DB,
@@ -52,6 +53,7 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
     }
 
     /// Starts the thread running `maintain` method.
+    /// 启动运行 `maintain` 方法的线程。
     pub fn start(self, panic_notify: mpsc::Sender<bool>) {
         thread::Builder::new()
             .name("prover_server_pool".to_string())
@@ -70,6 +72,7 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
     }
 
     /// Returns status of witness for block with index block_number
+    /// 返回具有索引 block_number 的块的见证状态
     async fn should_work_on_block(
         &self,
         block_number: BlockNumber,
@@ -182,13 +185,13 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
         metrics::histogram!("witness_generator.load_account_tree", start.elapsed());
         Ok(circuit_account_tree)
     }
-
+    //为区块准备见证人，并保存它
     async fn prepare_witness_and_save_it(&self, block: Block) -> anyhow::Result<()> {
         let start = time::Instant::now();
         let timer = time::Instant::now();
         let mut storage = self.database.acquire_connection().await?;
 
-        let mut circuit_account_tree = self.load_account_tree(block.block_number - 1).await?;
+        let mut circuit_account_tree = self.load_account_tree(block.block_number - 1).await?;//获取当前电路账户树
         vlog::trace!(
             "Witness generator loading circuit account tree {}s",
             timer.elapsed().as_secs()
@@ -217,6 +220,7 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
     }
 
     /// Returns next block for generating witness
+    /// 返回下一个块以生成见证
     fn next_witness_block(
         current_block: BlockNumber,
         block_step: BlockNumber,
@@ -232,6 +236,7 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
 
     /// Updates witness data in database in an infinite loop,
     /// awaiting `rounds_interval` time between updates.
+    /// 在无限循环中更新数据库中的见证数据，等待更新之间的“rounds_interval”时间。
     async fn maintain(self) {
         vlog::info!(
             "preparing prover data routine started with start_block({}), block_step({})",
@@ -249,7 +254,7 @@ impl<DB: DatabaseInterface> WitnessGenerator<DB> {
                 }
             };
 
-            let next_block = Self::next_witness_block(current_block, self.block_step, &should_work);
+            let next_block = Self::next_witness_block(current_block, self.block_step, &should_work);//如果需要生成下一个块则添加新块；否则，返回当前块
             if let BlockInfo::NoWitness(block) = should_work {
                 let block_number = block.block_number;
                 if let Err(err) = self.prepare_witness_and_save_it(block).await {

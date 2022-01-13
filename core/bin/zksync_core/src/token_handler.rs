@@ -195,9 +195,10 @@ impl TokenHandler {
         loop {
             timer.tick().await;
 
-            let new_tokens_events = self.load_new_token_events().await;
+            let new_tokens_events = self.load_new_token_events().await;//发送newtoken事件并等待回信
 
             // Ether is a standard token, so we can assume that at least the last token ID is zero.
+            // 以太币是标准代币，因此我们可以假设至少最后一个代币 ID 为零
             self.last_eth_block = new_tokens_events
                 .iter()
                 .map(|token| token.eth_block_number)
@@ -216,6 +217,7 @@ impl TokenHandler {
                 .expect("failed to add tokens to the database");
 
             // Send a notification that the token has been successfully added to the database.
+            // 发送令牌已成功添加到数据库的通知。
             if let Some(notifier) = &self.notifier {
                 for token in new_tokens {
                     notifier
@@ -241,6 +243,6 @@ pub fn run_token_handler(
         let mut token_handler =
             TokenHandler::new(db_pool, eth_watch_req, config.token_handler.clone()).await;
 
-        token_handler.run().await
+        token_handler.run().await//运行token handler
     })
 }

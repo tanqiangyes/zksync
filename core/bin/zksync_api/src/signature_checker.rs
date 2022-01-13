@@ -3,6 +3,7 @@
 //! Main routine of this module operates a multithreaded event loop,
 //! which is used to spawn concurrent tasks to efficiently check the
 //! transactions signatures.
+//!  signature_checker "模块提供了一个独立的线程例程，专门用于检查进入的交易的签名。该模块的主程序运行一个多线程的事件循环，用于生成并发任务，以有效地检查交易签名。
 
 // Built-in uses
 use std::collections::HashSet;
@@ -46,6 +47,7 @@ pub struct VerifiedTx(TxVariant);
 impl VerifiedTx {
     /// Checks the (batch of) transaction(s) correctness by verifying its
     /// Ethereum signature (if required) and `ZKSync` signature.
+    /// 通过验证其以太坊签名（如果需要）和“ZKSync”签名来检查（批次）交易的正确性。
     pub async fn verify(
         request_data: RequestData,
         eth_checker: &EthereumChecker,
@@ -380,6 +382,7 @@ impl RequestData {
 
 /// Main routine of the concurrent signature checker.
 /// See the module documentation for details.
+/// 并发签名检查器的主程序。有关详细信息，请参阅模块文档。
 pub fn start_sign_checker_detached(
     client: EthereumGateway,
     input: mpsc::Receiver<VerifySignatureRequest>,
@@ -390,6 +393,7 @@ pub fn start_sign_checker_detached(
     /// Main signature check requests handler.
     /// Basically it receives the requests through the channel and verifies signatures,
     /// notifying the request sender about the check result.
+    /// 主要签名检查请求处理程序。基本上它通过通道接收请求并验证签名，将检查结果通知请求发送者。
     async fn checker_routine(
         handle: Handle,
         mut input: mpsc::Receiver<VerifySignatureRequest>,

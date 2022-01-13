@@ -267,6 +267,7 @@ impl TxQueue {
 
     /// Notifies the queue about the transaction being confirmed on the Ethereum blockchain.
     /// Decrements the amount of transactions "in the fly".
+    /// 通知队列有关正在以太坊区块链上确认的交易。 “即时”减少交易量。
     pub fn report_commitment(&mut self) {
         assert!(
             self.sent_pending_txs > 0,

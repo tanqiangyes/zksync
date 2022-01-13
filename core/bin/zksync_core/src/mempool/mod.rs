@@ -436,7 +436,7 @@ impl MempoolBlocksHandler {
         vlog::info!("Block mempool handler is running");
         while let Some(request) = self.requests.next().await {
             match request {
-                MempoolBlocksRequest::GetBlock(block) => {
+                MempoolBlocksRequest::GetBlock(block) => {//获取propose区块
                     // Generate proposed block.
                     let proposed_block = self
                         .propose_new_block(block.last_priority_op_number, block.block_timestamp)
@@ -663,10 +663,10 @@ pub fn run_mempool_tasks(
         );
 
         for item in handlers.into_iter() {
-            tasks.push(tokio::spawn(item.run()));
+            tasks.push(tokio::spawn(item.run()));//运行内存池，处理交易添加，交易从下面的balancer.run里面发送过来
         }
 
-        tasks.push(tokio::spawn(balancer.run()));
+        tasks.push(tokio::spawn(balancer.run()));//运行交易接收转发，保证每个channel都能公平的接收到请求
 
         let blocks_handler = MempoolBlocksHandler {
             mempool_state,
@@ -674,7 +674,7 @@ pub fn run_mempool_tasks(
             eth_watch_req,
             max_block_size_chunks,
         };
-        tasks.push(tokio::spawn(blocks_handler.run()));
+        tasks.push(tokio::spawn(blocks_handler.run()));//运行区块处理函数
         wait_for_tasks(tasks).await
     })
 }

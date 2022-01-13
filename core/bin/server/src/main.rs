@@ -70,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run core actors.
     vlog::info!("Starting the Core actors");
-    let core_task_handles = run_core(
+    let core_task_handles = run_core(//运行核心程序
         connection_pool.clone(),
         stop_signal_sender.clone(),
         eth_gateway.clone(),
@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Run API actors.
     vlog::info!("Starting the API server actors");
-    let api_task_handle = run_api(
+    let api_task_handle = run_api(//启动api服务
         connection_pool.clone(),
         stop_signal_sender.clone(),
         eth_gateway.clone(),
@@ -91,9 +91,10 @@ async fn main() -> anyhow::Result<()> {
     // Run Ethereum sender actors.
     vlog::info!("Starting the Ethereum sender actors");
     let eth_sender_task_handle =
-        run_eth_sender(connection_pool.clone(), eth_gateway.clone(), config.clone());
+        run_eth_sender(connection_pool.clone(), eth_gateway.clone(), config.clone());//运行eth发送程序,主要更新gas
 
     // Run prover server & witness generator.
+    // 运行证明服务器和见证生成器。
     vlog::info!("Starting the Prover server actors");
     let database = zksync_witness_generator::database::Database::new(connection_pool.clone());
     run_prover_server(database, stop_signal_sender, ZkSyncConfig::from_env());

@@ -67,7 +67,7 @@ async fn handle_new_commit_task(
                         .into_iter()
                         .map(|tx| ExecutedOperations::Tx(Box::new(tx))),
                 );
-                save_pending_block(pending_block, applied_updates_req, &pool).await;
+                save_pending_block(pending_block, applied_updates_req, &pool).await;//保存pending_block
             }
         }
     }

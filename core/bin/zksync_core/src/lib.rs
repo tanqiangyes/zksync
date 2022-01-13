@@ -36,6 +36,7 @@ pub mod tx_event_emitter;
 /// Since the main tokio tasks are used as actors which should live as long
 /// as application runs, any possible outcome (either `Ok` or `Err`) is considered
 /// as a reason to stop the server completely.
+/// 等待任何 tokio 任务完成。由于主要的 tokio 任务被用作只要应用程序运行就应该存在的参与者，因此任何可能的结果（“Ok”或“Err”）都被认为是完全停止服务器的原因。
 pub async fn wait_for_tasks(task_futures: Vec<JoinHandle<()>>) {
     match future::select_all(task_futures).await {
         (Ok(_), _, _) => {
@@ -154,7 +155,7 @@ pub async fn run_core(
     let state_keeper_task = start_state_keeper(state_keeper, pending_block);//运行状态保存器
 
     // Start committer.
-    let committer_task = run_committer(//运行区块提交器
+    let committer_task = run_committer(//运行区块提交器,提交pending_block和block
         proposed_blocks_receiver,
         mempool_block_request_sender.clone(),
         connection_pool.clone(),
@@ -162,7 +163,7 @@ pub async fn run_core(
     );
 
     // Start mempool.
-    let mempool_task = run_mempool_tasks(
+    let mempool_task = run_mempool_tasks(//开始内存池
         connection_pool.clone(),
         mempool_tx_request_receiver,
         mempool_block_request_receiver,
@@ -172,37 +173,39 @@ pub async fn run_core(
         DEFAULT_CHANNEL_CAPACITY,
     );
 
-    let gateway_watcher_task_opt = run_gateway_watcher_if_multiplexed(eth_gateway.clone(), &config);
+    let gateway_watcher_task_opt = run_gateway_watcher_if_multiplexed(eth_gateway.clone(), &config);//运行路由监控
 
     // Start token handler.
-    let token_handler_task = run_token_handler(
+    let token_handler_task = run_token_handler(//运行token handler
         connection_pool.clone(),
         eth_watch_req_sender.clone(),
         &config,
     );
 
     // Start token handler.
-    let register_factory_task = run_register_factory_handler(
+    let register_factory_task = run_register_factory_handler(//运行注册的nft handler，从事件中取出nft相关事件，并处理
         connection_pool.clone(),
         eth_watch_req_sender.clone(),
         &config,
     );
     // Start rejected transactions cleaner task.
+    // 开始拒绝交易清理任务。
     let rejected_tx_cleaner_task = run_rejected_tx_cleaner(&config, connection_pool.clone());
 
-    let tx_event_emitter_task = tx_event_emitter::run_tx_event_emitter_task(
+    let tx_event_emitter_task = tx_event_emitter::run_tx_event_emitter_task(//运行交易发送器
         connection_pool.clone(),
         processed_tx_events_receiver,
     );
 
     // Start block proposer.
-    let proposer_task = run_block_proposer_task(
+    let proposer_task = run_block_proposer_task(//开始区块提议者，提议之后由状态管理器处理
         &config,
         mempool_block_request_sender.clone(),
         state_keeper_req_sender.clone(),
     );
 
     // Start private API.
+    // 启动私有 API
     start_private_core_api(
         panic_notify.clone(),
         mempool_tx_request_sender,

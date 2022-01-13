@@ -19,6 +19,7 @@ use std::time::Duration;
 /// This value is not cached internally, as it may be changed for the already running
 /// server by an administrator. This may be required if existing settings aren't flexible
 /// enough to match the current network price.
+/// 获取更新最大gas价格的时间间隔。此值不会在内部缓存，因为管理员可能会为已运行的服务器更改它。如果现有设置不够灵活，无法匹配当前网络价格，则可能需要这样做。
 pub fn limit_update_interval() -> Duration {
     parameters_impl::limit_update_interval()
 }
@@ -28,6 +29,7 @@ pub fn limit_update_interval() -> Duration {
 /// This value is not cached internally, as it may be changed for the already running
 /// server by an administrator. This may be required if existing settings aren't flexible
 /// enough to match the current network price.
+/// 获取最大 gas 价格的比例因子。此值不会在内部缓存，因为管理员可能会为已运行的服务器更改它。如果现有设置不够灵活，无法匹配当前网络价格，则可能需要这样做。
 pub fn limit_scale_factor() -> f64 {
     parameters_impl::limit_scale_factor()
 }
@@ -37,6 +39,7 @@ pub fn limit_scale_factor() -> f64 {
 /// This value is not cached internally, as it may be changed for the already running
 /// server by an administrator. This may be required if existing settings aren't flexible
 /// enough to match the current network price.
+/// 获取要添加到 `gas_adjuster` 中的 gas 价格样本的间隔。此值不会在内部缓存，因为管理员可能会为已运行的服务器更改它。如果现有设置不够灵活，无法匹配当前网络价格，则可能需要这样做。
 pub fn sample_adding_interval() -> Duration {
     parameters_impl::sample_adding_interval()
 }

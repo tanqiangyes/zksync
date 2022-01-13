@@ -193,6 +193,7 @@ pub fn start_private_core_api(
 
             actix_runtime.block_on(async move {
                 // Start HTTP server.
+                // 开始http服务
                 HttpServer::new(move || {
                     let app_state = AppState {
                         mempool_tx_sender: mempool_tx_sender.clone(),

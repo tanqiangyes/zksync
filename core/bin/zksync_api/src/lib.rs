@@ -24,7 +24,7 @@ pub fn run_api(
     let channel_size = 32768;
     let (ticker_request_sender, ticker_request_receiver) = mpsc::channel(channel_size);
 
-    let ticker_task = run_ticker_task(connection_pool.clone(), ticker_request_receiver, config);
+    let ticker_task = run_ticker_task(connection_pool.clone(), ticker_request_receiver, config);//定时器启动
 
     start_api_server(
         connection_pool,

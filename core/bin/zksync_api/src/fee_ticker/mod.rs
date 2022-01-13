@@ -280,7 +280,7 @@ pub fn run_ticker_task(
     );
 
     let updater = MarketUpdater::new(cache, watcher);
-    tokio::spawn(updater.keep_updated(config.ticker.token_market_update_time));
+    tokio::spawn(updater.keep_updated(config.ticker.token_market_update_time));//更新token
     let client = reqwest::ClientBuilder::new()
         .timeout(CONNECTION_TIMEOUT)
         .connect_timeout(CONNECTION_TIMEOUT)

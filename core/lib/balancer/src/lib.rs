@@ -38,6 +38,7 @@ impl<R> Balancer<R> {
 
     pub async fn run(mut self) {//异步方法
         // It's an obvious way of balancing. Send an equal number of requests to each ticker
+        // 这是一种明显的平衡方式。向每个股票代码发送相同数量的请求
         let mut channel_indexes = (0..self.channels.len()).into_iter().cycle();//迭代器
         // It's the easiest way how to cycle over channels, because cycle required clone trait.
         while let Some(request) = self.requests.next().await {//等待异步请求

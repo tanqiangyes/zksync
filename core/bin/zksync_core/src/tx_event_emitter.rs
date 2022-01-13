@@ -3,6 +3,8 @@
 //!
 //! It exists solely for isolating the state keeper from the storage since
 //! it's used as the event queue backend.
+//! 事务事件发射器负责将`Queued`事件存储在数据库中。
+//! 它的存在仅仅是为了将状态保持者与存储隔离，因为它被用作事件队列的后端。
 
 // External uses
 use futures::{channel::mpsc, StreamExt};
